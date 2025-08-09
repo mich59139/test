@@ -1,14 +1,81 @@
+:root{
+  --bg:#fafafa; --fg:#222; --muted:#777;
+  --card:#fff; --border:#e6e6e6; --accent:#2b7fff; --ok:#18a558; --err:#c62828;
+}
 *{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px}
-h1{margin:0 0 10px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
-.panel{border:1px solid #ddd;border-radius:12px;padding:12px;margin:8px 0;background:#fafafa}
-#status{margin:6px 0;opacity:.8;min-height:18px}
-table{border-collapse:collapse;width:100%;margin-top:10px}
-th,td{border:1px solid #e5e5e5;padding:6px 8px;text-align:left}
-th{cursor:pointer;background:#f4f4f4;user-select:none}
-th .arrow{opacity:.6;margin-left:4px}
-tr:nth-child(even){background:#fcfcfc}
-input,select,button{padding:6px 8px;border:1px solid #d0d0d0;border-radius:8px}
-button{background:#fff;cursor:pointer}
-button:hover{background:#f2f2f2}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+h1{margin:16px 16px 8px;font-size:22px}
+h2{margin:0 0 8px 0;font-size:18px}
+
+/* Panel d'état GitHub */
+.status-panel{
+  display:flex;gap:8px;flex-wrap:wrap;margin:8px 16px 12px;
+}
+.status-badge{
+  background:var(--card);border:1px solid var(--border);border-radius:999px;
+  padding:4px 10px;color:var(--muted);
+}
+.status-badge.ok{border-color:rgba(24,165,88,.25);color:#0a5; background:#f4fff7}
+.status-badge.err{border-color:rgba(198,40,40,.25);color:#c62828;background:#fff6f6}
+
+/* Boutons */
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:0 16px 12px}
+button{
+  cursor:pointer;border:1px solid var(--border);background:var(--card);
+  padding:8px 12px;border-radius:10px;transition:transform .02s ease,box-shadow .15s ease;
+}
+button:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+button:active{transform:translateY(1px)}
+#save-btn,#save-in-drawer{background:var(--accent);border-color:#1f6de0;color:#fff}
+#logout-btn{background:#fff5f5;border-color:#ffdede;color:#b30000}
+
+/* Formulaire d'ajout */
+#form-container{
+  margin:0 16px 12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--card);
+}
+#form-container .row{display:flex;gap:8px;flex-wrap:wrap}
+#form-container input{
+  min-width:160px;max-width:260px;flex:1 1 180px;
+  padding:8px;border:1px solid var(--border);border-radius:10px;background:#fff;
+}
+#form-container button{margin-top:8px}
+
+/* Filtres */
+.filters{
+  display:flex;gap:12px;flex-wrap:wrap;margin:0 16px 10px;padding:8px 12px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:#fff;
+}
+.filters label{display:flex;align-items:center;gap:6px;color:#444}
+.filters select,.filters input{
+  padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:#fff;
+}
+
+/* Tableau */
+#articles{margin:0 16px 24px;overflow:auto}
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+thead th{
+  position:sticky;top:0;background:#f8f9fb;border-bottom:1px solid var(--border);
+  text-align:left;font-weight:600;padding:10px;white-space:nowrap;cursor:pointer
+}
+tbody td{padding:8px 10px;border-bottom:1px solid #f1f1f1;vertical-align:top}
+tbody tr:nth-child(even){background:#fcfcfd}
+tbody tr:hover{background:#f6f9ff}
+th,td:nth-child(1){width:90px}        /* Année */
+td:nth-child(2){width:90px}            /* Numéro */
+td:nth-child(3){min-width:240px}       /* Titre */
+td:nth-child(4){width:110px}           /* Pages */
+td:nth-child(5),td:nth-child(6),td:nth-child(7),td:nth-child(8){min-width:160px}
+
+@media (max-width:900px){
+  td:nth-child(5),td:nth-child(6),td:nth-child(7){min-width:120px}
+  td:nth-child(3){min-width:200px}
+}
+
+/* Pagination */
+#articles .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px}
+#articles .pager button[disabled]{opacity:.5;cursor:not-allowed}
+
+/* Messages */
+.notice{margin:8px 16px;color:#555}
+.error{color:var(--err)}
+.success{color:var(--ok)}
