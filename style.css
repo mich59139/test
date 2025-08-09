@@ -31,28 +31,12 @@ tbody tr:nth-child(even){background:#fbfdff}
 .pager{display:flex;gap:10px;justify-content:center;align-items:center;padding:10px}
 .pager button[disabled]{opacity:.5;cursor:not-allowed}
 
-/* Actions */
+/* Actions + inline edit */
 td.actions{ white-space:nowrap }
-td.actions button{
-  padding:6px 8px; border-radius:8px; margin-right:6px;
-}
+td.actions button{ padding:6px 8px; border-radius:8px; margin-right:6px; }
 td.actions button.edit{ border-color:#dbeafe; background:#eff6ff }
 td.actions button.del{  border-color:#fee2e2; background:#fff1f2; color:#b91c1c }
-
-/* Drawer */
-.drawer.hidden{ display:none }
-.drawer{
-  position:fixed; inset:0; background:rgba(0,0,0,.25);
-  display:flex; justify-content:flex-end; z-index:1000;
-}
-.drawer-panel{
-  width:min(480px, 100%); height:100%; background:#fff; border-left:1px solid var(--border);
-  display:flex; flex-direction:column; padding:16px; gap:10px;
-}
-.drawer-body{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
-.drawer-body input{ padding:8px; border:1px solid var(--border); border-radius:10px }
-.drawer-actions{ display:flex; gap:8px; justify-content:flex-end }
-.drawer-actions .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
+tr.editing .cell-input{ width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:8px }
 
 /* Loader */
 .loading.hidden{ display:none }
