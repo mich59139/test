@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -7,100 +7,99 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Catalogue des Articles</h1>
+  <div class="shell">
+    <h1>Catalogue des Articles</h1>
 
-  <!-- Statuts -->
-  <div class="badges">
-    Auth: <span id="status-auth">❌</span>
-    Repo: <span id="status-repo">❌</span>
-    Branche: <span id="status-branch">❌</span>
-    Fichier: <span id="status-file">❌</span>
-  </div>
+    <!-- Statuts -->
+    <div class="badges panel">
+      Auth: <span id="status-auth">❌</span>
+      Repo: <span id="status-repo">❌</span>
+      Branche: <span id="status-branch">❌</span>
+      Fichier: <span id="status-file">❌</span>
+    </div>
 
-  <!-- Commandes -->
-  <div class="controls">
-    <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
-    <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-    <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
-    <button onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
-    <button onclick="window._reloadRaw?.()">🔄 Recharger depuis GitHub</button>
-  </div>
+    <!-- Commandes -->
+    <div class="controls panel">
+      <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
+      <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+      <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
+      <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
+      <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
+    </div>
 
-  <!-- Ajout d'article (avec suggestions) -->
-  <div class="form-add" id="add-box">
-    <h2>Ajouter un article</h2>
+    <!-- Ajout d'article (avec suggestions) -->
+    <div class="form-add panel" id="add-box">
+      <h2>Ajouter un article</h2>
 
-    <input type="text" id="add-annee"   placeholder="Année"   list="dl-annee">
-    <datalist id="dl-annee"></datalist>
+      <input type="text" id="add-annee"   placeholder="Année"   list="dl-annee">
+      <datalist id="dl-annee"></datalist>
 
-    <input type="text" id="add-numero"  placeholder="Numéro"  list="dl-numero">
-    <datalist id="dl-numero"></datalist>
+      <input type="text" id="add-numero"  placeholder="Numéro"  list="dl-numero">
+      <datalist id="dl-numero"></datalist>
 
-    <input type="text" id="add-titre"   placeholder="Titre" required>
-    <input type="text" id="add-pages"   placeholder="Page(s)">
+      <input type="text" id="add-titre"   placeholder="Titre" required>
+      <input type="text" id="add-pages"   placeholder="Page(s)">
 
-    <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
-    <datalist id="dl-auteurs"></datalist>
+      <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
+      <datalist id="dl-auteurs"></datalist>
 
-    <input type="text" id="add-villes"  placeholder="Ville(s)"  list="dl-villes">
-    <datalist id="dl-villes"></datalist>
+      <input type="text" id="add-villes"  placeholder="Ville(s)"  list="dl-villes">
+      <datalist id="dl-villes"></datalist>
 
-    <input type="text" id="add-themes"  placeholder="Thème(s)"  list="dl-themes">
-    <datalist id="dl-themes"></datalist>
+      <input type="text" id="add-themes"  placeholder="Thème(s)"  list="dl-themes">
+      <datalist id="dl-themes"></datalist>
 
-    <input type="text" id="add-epoque"  placeholder="Période"   list="dl-epoque">
-    <datalist id="dl-epoque"></datalist>
+      <input type="text" id="add-epoque"  placeholder="Période"   list="dl-epoque">
+      <datalist id="dl-epoque"></datalist>
 
-    <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter et enregistrer</button>
-  </div>
+      <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter et enregistrer</button>
+    </div>
 
-  <!-- Filtres -->
-  <div class="filters">
-    <label>Afficher :
-      <select id="limit">
-        <option value="50" selected>50</option>
-        <option value="100">100</option>
-        <option value="all">Tout</option>
-      </select>
-    </label>
-    <label>Année :
-      <select id="filter-annee"></select>
-    </label>
-    <label>Numéro :
-      <select id="filter-numero"></select>
-    </label>
-    <label>Recherche :
-      <input type="text" id="search" placeholder="Chercher dans tous les champs">
-    </label>
-  </div>
+    <!-- Filtres -->
+    <div class="filters panel">
+      <label>Afficher :
+        <select id="limit">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="all">Tout</option>
+        </select>
+      </label>
+      <label>Année :
+        <select id="filter-annee"></select>
+      </label>
+      <label>Numéro :
+        <select id="filter-numero"></select>
+      </label>
+      <label>Recherche :
+        <input type="text" id="search" placeholder="Chercher dans tous les champs">
+      </label>
+    </div>
 
-  <!-- Tableau -->
- <div class="table-container">
-  <table id="articles-table">
-    <!-- ... -->
-  </table>
-</div>
-  <div id="articles">
-    <table>
-      <thead>
-        <tr>
-          <th data-col="Année">Année</th>
-          <th data-col="Numéro">Numéro</th>
-          <th data-col="Titre">Titre</th>
-          <th data-col="Page(s)">Page(s)</th>
-          <th data-col="Auteur(s)">Auteur(s)</th>
-          <th data-col="Ville(s)">Ville(s)</th>
-          <th data-col="Theme(s)">Thème(s)</th>
-          <th data-col="Epoque">Période</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="articles-body"></tbody>
-    </table>
-    <div class="pager">
-      <button id="prev">◀ Précédent</button>
-      <span id="pageinfo"></span>
-      <button id="next">Suivant ▶</button>
+    <!-- Tableau -->
+    <div id="articles" class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-col="Année">Année</th>
+              <th data-col="Numéro">Numéro</th>
+              <th data-col="Titre">Titre</th>
+              <th data-col="Page(s)">Page(s)</th>
+              <th data-col="Auteur(s)">Auteur(s)</th>
+              <th data-col="Ville(s)">Ville(s)</th>
+              <th data-col="Theme(s)">Thème(s)</th>
+              <th data-col="Epoque">Période</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="articles-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button id="prev">◀ Précédent</button>
+        <span id="pageinfo"></span>
+        <button id="next">Suivant ▶</button>
+      </div>
     </div>
   </div>
 
