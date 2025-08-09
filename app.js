@@ -217,29 +217,6 @@ function render(){
   container.innerHTML = html;
 }
 
-/* ========= FORMULAIRE (AJOUT) ========= */
-function addFromForm() {
-  const $ = n => document.querySelector(`#form-container [name="${n}"]`);
-  const row = {
-    "Année":   norm($("Année")?.value),
-    "Numéro":  norm($("Numéro")?.value),
-    "Titre":   norm($("Titre")?.value),
-    "Page(s)": norm($("Page(s)")?.value),
-    "Auteur(s)": splitMulti($("Auteur(s)")?.value).join("; "),
-    "Ville(s)":  splitMulti($("Ville(s)")?.value).join("; "),
-    "Theme(s)":  splitMulti($("Theme(s)")?.value).join("; "),
-    "Epoque":    norm($("Epoque")?.value),
-  };
-  if (articles.some(r => rowKey(r) === rowKey(row))) {
-    alert("Doublon détecté : même Année + Numéro + Titre.");
-    return;
-  }
-  articles.push(row);
-  pendingAdds.push(row);
-  currentPage = 1;
-  render();
-}
-
 /* ========= CSV ========= */
 function buildCsvFromArticles(rows) {
   const headers = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
@@ -359,7 +336,7 @@ function wireUI(){
     await githubLoginInline();
     await verifyGithubTarget();
     setBadge("status-auth", !!GHTOKEN);
-    setBadge("status-repo", true); // si on est là, l'owner/repo est valide
+    setBadge("status-repo", true);
   });
 
   document.getElementById("logout-btn")?.addEventListener("click", ()=>{
