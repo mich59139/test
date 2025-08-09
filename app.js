@@ -1,8 +1,8 @@
 /* ========= CONFIG ========= */
-const GITHUB_OWNER  = "mich59139";
+cconst GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
-const CSV_PATH      = "data/articles.csv";
+const CSV_PATH      = "data/articles.csv"; // <— sans espace !
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
 /* ========= TOKEN EN SESSION ========= */
