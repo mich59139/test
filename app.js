@@ -195,38 +195,70 @@ async function saveToGitHubMerged(newRow){
     "Accept": "application/vnd.github+json",
     "Content-Type": "application/json"
   };
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const url   = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const branch= GITHUB_BRANCH;
 
-  // Lire distant (pour sha et fusion)
-  const get = await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
-  let sha=null, remoteRows=[];
-  if (get.status===404) remoteRows=[];
-  else if (get.ok){ const j=await get.json(); sha=j.sha; remoteRows=parseCsvFlexible(decodeB64(j.content)); }
-  else { const t=await get.text(); alert(`Lecture KO: ${get.status}\n${t}`); throw new Error("load failed"); }
+  // clé pour dé-doublonner (Année+Numéro+Titre)
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
 
-  // Fusion append-only (évite doublons Année+Numéro+Titre)
-  const key=r=>[r["Année"],r["Numéro"],r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
-  const seen=new Set(remoteRows.map(key));
-  const merged=[...remoteRows];
-  if (newRow && !seen.has(key(newRow))) merged.push(newRow);
+  // petite pause
+  const sleep = ms => new Promise(res=>setTimeout(res, ms));
 
-  // PUT (sans Cache-Control)
-  const bodyBase={ message: sha?"maj UI (update)":"init + ajout", content: encodeB64(toCSV(merged)), branch:GITHUB_BRANCH };
-  let attempts=0; let put, bodyTxt="";
-  while (attempts<3){
-    put=await fetch(url,{ method:"PUT", headers, body: JSON.stringify(sha?{...bodyBase, sha}:{...bodyBase}) });
-    if (put.status!==409) break;
-    const r2=await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
-    if (!r2.ok){ const t2=await r2.text(); alert(`Retry GET KO: ${r2.status}\n${t2}`); throw new Error("retry failed"); }
-    const j2=await r2.json(); sha=j2.sha; attempts++;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    // 1) Lire la dernière version (sha + contenu)
+    let sha = null, remoteRows = [];
+    const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+
+    if (get.status === 404) {
+      // fichier inexistant → on crée à partir de la ligne locale
+      remoteRows = [];
+    } else if (get.ok) {
+      const j = await get.json();
+      sha = j.sha;
+      remoteRows = parseCsvFlexible(decodeURIComponent(escape(atob(j.content))));
+    } else {
+      const body = await get.text();
+      throw new Error(`GET ${get.status}\n${body}`);
+    }
+
+    // 2) Re-fusionner à CHAQUE tentative
+    const seen = new Set(remoteRows.map(key));
+    const merged = [...remoteRows];
+    if (newRow && !seen.has(key(newRow))) merged.push(newRow);
+
+    // 3) Tenter le PUT avec le sha courant
+    const body = {
+      message: sha ? "maj UI (merge append)" : "init + ajout",
+      content: btoa(unescape(encodeURIComponent(toCSV(merged)))),
+      branch,
+      ...(sha ? { sha } : {})
+    };
+    const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
+
+    if (put.ok) {
+      // succès → recharger l’affichage RAW
+      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
+      const txt = await put.text(); let commitUrl="";
+      try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
+      alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
+      return;
+    }
+
+    if (put.status === 409) {
+      // Conflit → attendre un peu et recommencer le cycle (GET→merge→PUT)
+      const wait = 300 * attempt; // backoff
+      console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
+      await sleep(wait);
+      continue;
+    }
+
+    // autre erreur que 409
+    const errTxt = await put.text();
+    throw new Error(`PUT ${put.status}\n${errTxt}`);
   }
-  bodyTxt = await put.text();
-  if (!put.ok){ alert(`Commit KO: ${put.status}\n${bodyTxt.slice(0,500)}`); throw new Error("put failed"); }
 
-  // succès → recharger RAW + reset filtres
-  let commitUrl=""; try{ const j=JSON.parse(bodyTxt); commitUrl=j?.commit?.html_url||""; }catch{}
-  setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1200);
-  alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
+  // Si on sort de la boucle
+  throw new Error("Conflit 409 persistant après 5 tentatives.");
 }
 
 /* ========= INIT CSV SI MANQUANT ========= */
