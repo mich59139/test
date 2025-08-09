@@ -52,7 +52,7 @@ tr.editing .cell-input{ width:100%; padding:6px 8px; border:1px solid var(--bord
 @keyframes spin{ to{ transform:rotate(360deg) } }
 /* Conteneur centré avec largeur réduite */
 .table-container {
-  max-width: 75%; /* Réduit à 3/4 */
+  max-width: 1200px; /* Réduit à 3/4 */
   margin: auto;
 }
 
