@@ -20,10 +20,12 @@
 
   <!-- Boutons -->
   <div class="controls">
-    <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
-    <button id="logout-btn">🚪 Déconnexion</button>
-    <button id="save-btn">💾 Enregistrer dans GitHub</button>
-    <button id="init-btn">🧩 Créer data/articles.csv (si manquant)</button>
+   <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
+<button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+<button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
+<button id="init-btn"   onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
+...
+<button id="add-btn"    onclick="window._add?.()">Ajouter et enregistrer</button>
   </div>
 
   <!-- Formulaire d'ajout -->
