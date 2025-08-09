@@ -10,6 +10,8 @@ let GHTOKEN  = localStorage.getItem("ghtoken") || null;
 let ARTICLES = [];
 let currentPage = 1;
 let sortCol = null, sortDir = "asc";
+let EDIT_INLINE_IDX = null;     // index global en édition inline
+let EDIT_INLINE_DRAFT = null;   // copie de travail
 
 /* ========= UTILS ========= */
 const HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
@@ -21,6 +23,7 @@ const setBadge = (id, ok, extra="") => { const el=document.getElementById(id); i
 const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr"));
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 const showLoading = (on=true) => { const el=document.getElementById("loading"); if (el) el.classList.toggle("hidden", !on); };
+const splitMulti = v => (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean);
 
 /* ========= PARSEUR ROBUSTE ========= */
 function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
@@ -111,8 +114,6 @@ function populateFilters(){
   if (an) an.innerHTML = `<option value="">(toutes)</option>` + uniqSorted(ARTICLES.map(r=>r["Année"])).map(v=>`<option>${v}</option>`).join("");
   if (nu) nu.innerHTML = `<option value="">(tous)</option>`   + uniqSorted(ARTICLES.map(r=>r["Numéro"])).map(v=>`<option>${v}</option>`).join("");
 }
-
-function splitMulti(v){ return (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean); }
 function populateDatalists(){
   const fill = (id, values) => {
     const el = document.getElementById(id);
@@ -157,36 +158,52 @@ function render(){
   const {page,total,per}=applyFiltersSortPaginate();
   if (!page.length) { tb.innerHTML=`<tr><td colspan="9">Aucun article trouvé.</td></tr>`; }
   else {
-    tb.innerHTML = page.map(r=>`
-      <tr>
-        <td>${r["Année"]||""}</td>
-        <td>${r["Numéro"]||""}</td>
-        <td>${r["Titre"]||""}</td>
-        <td>${r["Page(s)"]||""}</td>
-        <td>${r["Auteur(s)"]||""}</td>
-        <td>${r["Ville(s)"]||""}</td>
-        <td>${r["Theme(s)"]||""}</td>
-        <td>${r["Epoque"]||""}</td>
-        <td class="actions">
-          <button class="edit" onclick="window._editOpen?.(${r.__idx})">✏️</button>
-          <button class="del"  onclick="window._delete?.(${r.__idx})">🗑️</button>
-        </td>
-      </tr>
-    `).join("");
+    tb.innerHTML = page.map(r=>{
+      const editing = EDIT_INLINE_IDX === r.__idx;
+      if (!editing) {
+        return `
+          <tr ondblclick="window._inlineEdit?.(${r.__idx})">
+            <td>${r["Année"]||""}</td>
+            <td>${r["Numéro"]||""}</td>
+            <td>${r["Titre"]||""}</td>
+            <td>${r["Page(s)"]||""}</td>
+            <td>${r["Auteur(s)"]||""}</td>
+            <td>${r["Ville(s)"]||""}</td>
+            <td>${r["Theme(s)"]||""}</td>
+            <td>${r["Epoque"]||""}</td>
+            <td class="actions">
+              <button class="edit" onclick="window._inlineEdit?.(${r.__idx})">✏️</button>
+              <button class="del"  onclick="window._delete?.(${r.__idx})">🗑️</button>
+            </td>
+          </tr>
+        `;
+      } else {
+        const d = EDIT_INLINE_DRAFT;
+        const input = (id,val,list="") =>
+          `<input id="${id}" value="${(val??"").toString().replaceAll('"','&quot;')}" ${list?`list="${list}"`:""} class="cell-input">`;
+        return `
+          <tr class="editing">
+            <td>${input("ei-annee", d["Année"], "dl-annee")}</td>
+            <td>${input("ei-numero", d["Numéro"], "dl-numero")}</td>
+            <td>${input("ei-titre", d["Titre"])}</td>
+            <td>${input("ei-pages", d["Page(s)"])}</td>
+            <td>${input("ei-auteurs", d["Auteur(s)"], "dl-auteurs")}</td>
+            <td>${input("ei-villes", d["Ville(s)"], "dl-villes")}</td>
+            <td>${input("ei-themes", d["Theme(s)"], "dl-themes")}</td>
+            <td>${input("ei-epoque", d["Epoque"], "dl-epoque")}</td>
+            <td class="actions">
+              <button class="edit" onclick="window._inlineSave?.()">💾</button>
+              <button class="del"  onclick="window._inlineCancel?.()">✖</button>
+            </td>
+          </tr>
+        `;
+      }
+    }).join("");
   }
   const max=Math.max(1, Math.ceil(total/(per||1)));
   document.getElementById("pageinfo").textContent=`Page ${currentPage} / ${max} — ${total} résultats`;
   document.getElementById("prev").disabled=currentPage<=1;
   document.getElementById("next").disabled=currentPage>=max;
-}
-function wireSorting(){
-  document.querySelectorAll("th[data-col]").forEach(th=>{
-    th.addEventListener("click", ()=>{
-      const col=th.getAttribute("data-col");
-      if (sortCol===col) sortDir = (sortDir==="asc")?"desc":"asc"; else { sortCol=col; sortDir="asc"; }
-      currentPage=1; render();
-    });
-  });
 }
 
 /* ========= LOGIN / LOGOUT ========= */
@@ -322,50 +339,56 @@ async function initCsvIfMissing(){
   alert("CSV initialisé ✅"); await probePublicAndLoad(); resetFiltersUI(); render();
 }
 
-/* ========= ÉDITION / SUPPRESSION ========= */
-let EDIT_INDEX = null;
-
-window._editOpen = (idx) => {
-  EDIT_INDEX = idx;
-  const r = ARTICLES[idx];
-  if (!r) return;
-  const set=(id,v)=>{ const el=document.getElementById(id); if (el) el.value = v||""; };
-  set("edit-annee",   r["Année"]);
-  set("edit-numero",  r["Numéro"]);
-  set("edit-titre",   r["Titre"]);
-  set("edit-pages",   r["Page(s)"]);
-  set("edit-auteurs", r["Auteur(s)"]);
-  set("edit-villes",  r["Ville(s)"]);
-  set("edit-themes",  r["Theme(s)"]);
-  set("edit-epoque",  r["Epoque"]);
-  document.getElementById("edit-drawer")?.classList.remove("hidden");
+/* ========= ÉDITION INLINE / SUPPRESSION ========= */
+window._inlineEdit = (idx) => {
+  EDIT_INLINE_IDX = idx;
+  EDIT_INLINE_DRAFT = { ...ARTICLES[idx] };   // copie
+  render();
+  setTimeout(()=> document.getElementById("ei-titre")?.focus(), 0);
 };
-
-window._editCancel = () => {
-  EDIT_INDEX = null;
-  document.getElementById("edit-drawer")?.classList.add("hidden");
+window._inlineCancel = () => {
+  EDIT_INLINE_IDX = null;
+  EDIT_INLINE_DRAFT = null;
+  render();
 };
+window._inlineSave = async () => {
+  if (EDIT_INLINE_IDX==null) return;
+  const get = id => document.getElementById(id)?.value?.trim() || "";
+  const updated = {
+    "Année":   get("ei-annee"),
+    "Numéro":  get("ei-numero"),
+    "Titre":   get("ei-titre"),
+    "Page(s)": get("ei-pages"),
+    "Auteur(s)":get("ei-auteurs"),
+    "Ville(s)": get("ei-villes"),
+    "Theme(s)": get("ei-themes"),
+    "Epoque":   get("ei-epoque")
+  };
+  if (!updated["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
 
-window._editSave = async () => {
-  try{
-    if (EDIT_INDEX==null) return;
-    const get=id=>document.getElementById(id)?.value?.trim()||"";
-    const updated = {
-      "Année":get("edit-annee"), "Numéro":get("edit-numero"), "Titre":get("edit-titre"),
-      "Page(s)":get("edit-pages"), "Auteur(s)":get("edit-auteurs"), "Ville(s)":get("edit-villes"),
-      "Theme(s)":get("edit-themes"), "Epoque":get("edit-epoque")
-    };
-    if (!updated["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+  // anti‑doublon (Année+Numéro+Titre)
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
+  const newKey = key(updated);
+  for (let i=0;i<ARTICLES.length;i++){
+    if (i===EDIT_INLINE_IDX) continue;
+    if (key(ARTICLES[i])===newKey){ alert("Doublon détecté (Année+Numéro+Titre)."); return; }
+  }
 
-    // MAJ locale + affichage immédiat
-    ARTICLES[EDIT_INDEX] = updated;
-    render(); populateDatalists();
+  // MAJ locale + UI
+  ARTICLES[EDIT_INLINE_IDX] = updated;
+  EDIT_INLINE_IDX = null;
+  EDIT_INLINE_DRAFT = null;
+  render(); populateDatalists();
 
-    if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
-    await saveAllRowsToGithub(ARTICLES, "maj UI (édition)");
-    document.getElementById("edit-drawer")?.classList.add("hidden");
-    EDIT_INDEX=null;
-  } catch(e){ alert("Échec édition : "+(e?.message||e)); }
+  if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+  try {
+    showLoading(true);
+    await saveAllRowsToGithub(ARTICLES, "maj UI (édition inline)");
+  } catch(e){
+    alert("Échec sauvegarde : " + (e?.message||e));
+  } finally {
+    showLoading(false);
+  }
 };
 
 window._delete = async (idx) => {
@@ -375,13 +398,14 @@ window._delete = async (idx) => {
     const ok = confirm(`Supprimer cet article ?\n\n${r["Année"]||""} • ${r["Numéro"]||""}\n${r["Titre"]||""}`);
     if (!ok) return;
 
-    // suppression locale + affichage
     ARTICLES.splice(idx,1);
     render(); populateDatalists();
 
     if (!GHTOKEN){ alert("Supprimé localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+    showLoading(true);
     await saveAllRowsToGithub(ARTICLES, "maj UI (suppression)");
   } catch(e){ alert("Échec suppression : "+(e?.message||e)); }
+  finally{ showLoading(false); }
 };
 
 /* ========= HANDLERS AJOUT / ENREG. ========= */
@@ -399,6 +423,10 @@ window._add = async (ev)=>{ try{
               "Page(s)":get("add-pages"), "Auteur(s)":get("add-auteurs"), "Ville(s)":get("add-villes"),
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+  // anti-doublon sur ajout
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
+  if (ARTICLES.some(r=>key(r)===key(row))) { alert("Doublon (Année+Numéro+Titre) — ajout annulé."); return; }
+
   ARTICLES.unshift(row); currentPage=1; render(); populateDatalists();
   if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
   const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
@@ -415,6 +443,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("filter-numero")?.addEventListener("change", ()=>{ document.getElementById("filter-annee").value=""; currentPage=1; render(); });
   document.getElementById("limit")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("search")?.addEventListener("input", ()=>{ currentPage=1; render(); });
+
   document.querySelectorAll("th[data-col]").forEach(th=>{
     th.addEventListener("click", ()=>{
       const col=th.getAttribute("data-col");
@@ -422,5 +451,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       currentPage=1; render();
     });
   });
+
+  // Raccourcis clavier pour édition inline
+  document.addEventListener("keydown", (e)=>{
+    if (EDIT_INLINE_IDX==null) return;
+    if (e.key==="Enter") { e.preventDefault(); window._inlineSave?.(); }
+    if (e.key==="Escape") { e.preventDefault(); window._inlineCancel?.(); }
+  });
+
   setBadge("status-auth", !!GHTOKEN);
 });
