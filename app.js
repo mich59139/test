@@ -256,3 +256,55 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   // badge auth si token déjà stocké
   setBadge("status-auth", !!GHTOKEN);
 });
+// Fallbacks globaux, appelés par les onclick HTML
+window._login = async () => {
+  try {
+    const t = prompt("Collez votre token GitHub (scope public_repo) :");
+    if (!t) return;
+    localStorage.setItem("ghtoken", t.trim());
+    GHTOKEN = t.trim();
+    setBadge("status-auth", true);
+    alert("Connecté à GitHub ✅");
+  } catch(e){ alert("Login: "+e.message); }
+};
+
+window._logout = () => {
+  localStorage.removeItem("ghtoken");
+  GHTOKEN = null;
+  setBadge("status-auth", false);
+  alert("Déconnecté.");
+};
+
+window._save = async () => {
+  try {
+    if (!GHTOKEN) { alert("🔐 Connectez-vous d’abord."); return; }
+    if (!ARTICLES.length) { alert("Rien à enregistrer."); return; }
+    await saveToGitHubMerged(ARTICLES[0]);   // sauve le CSV complet (append-only si tu passes une ligne)
+    alert("Enregistré ✅");
+  } catch(e){ alert("Save: "+e.message); console.error(e); }
+};
+
+window._init = async () => {
+  try {
+    if (!GHTOKEN) { alert("🔐 Connectez-vous d’abord."); return; }
+    await initCsvIfMissing();                // crée le CSV uniquement s’il manque
+  } catch(e){ alert("Init: "+e.message); }
+};
+
+window._add = async () => {
+  try {
+    const get = id => document.getElementById(id)?.value?.trim() || "";
+    const row = {
+      "Année": get("add-annee"), "Numéro": get("add-numero"), "Titre": get("add-titre"),
+      "Page(s)": get("add-pages"), "Auteur(s)": get("add-auteurs"), "Ville(s)": get("add-villes"),
+      "Theme(s)": get("add-themes"), "Epoque": get("add-epoque")
+    };
+    if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+    // affiche tout de suite
+    ARTICLES.unshift(row); currentPage=1; render();
+    // enregistre si connecté
+    if (!GHTOKEN) { alert("Ajout local OK. Pour enregistrer dans GitHub, cliquez 🔐 puis réessayez."); return; }
+    await saveToGitHubMerged(row);
+    alert("Article ajouté et enregistré ✅");
+  } catch(e){ alert("Add: "+e.message); console.error(e); }
+};
