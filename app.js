@@ -42,15 +42,23 @@ function detectDelimiter(text){
 }
 function parseCsvFlexible(text) {
   if (!text) return [];
-  if (text.charCodeAt(0)===0xFEFF) text=text.slice(1); // BOM
-  const delim = detectDelimiter(text);
+
+  // Enlever un BOM éventuel
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // IMPORTANT: Papa gère mieux la dernière ligne si le texte finit par "\n"
+  if (!text.endsWith("\n")) text += "\n";
+
+  // Autodétection du séparateur et des fins de lignes
   const res = Papa.parse(text, {
     header: true,
-    skipEmptyLines: "greedy",
-    delimiter: delim,
+    skipEmptyLines: true,      // pas "greedy" ici
+    delimiter: "",             // auto ("," ";" ou "\t")
+    newline: "",               // auto (\r\n, \n, \r)
     transformHeader: normalizeHeader
   });
-  const rows = (res.data||[]).map(row => ({
+
+  const rows = (res.data || []).map(row => ({
     "Année":     row["Année"]    ?? row["annee"] ?? "",
     "Numéro":    row["Numéro"]   ?? row["numero"] ?? "",
     "Titre":     row["Titre"]    ?? "",
@@ -60,11 +68,10 @@ function parseCsvFlexible(text) {
     "Theme(s)":  row["Theme(s)"] ?? row["Thème(s)"] ?? row["Themes"] ?? "",
     "Epoque":    row["Epoque"]   ?? row["Période"] ?? row["Periode"] ?? ""
   }));
-  const cleaned = rows.filter(r => Object.values(r).some(v => (v||"").toString().trim()!==""));
-  console.log(`[RAW] ${cleaned.length} lignes parsées (delim="${delim}")`);
-  return cleaned;
-}
 
+  console.log(`[RAW] lignes: ${rows.length}`, { firstRow: rows[0], lastRow: rows.at(-1) });
+  return rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
+}
 /* ========= RESET FILTRES ========= */
 function resetFiltersUI() {
   const fA = document.getElementById("filter-annee");
