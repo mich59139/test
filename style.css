@@ -50,3 +50,58 @@ tr.editing .cell-input{ width:100%; padding:6px 8px; border:1px solid var(--bord
   border-radius:50%; animation:spin 1s linear infinite;
 }
 @keyframes spin{ to{ transform:rotate(360deg) } }
+/* Conteneur centré avec largeur réduite */
+.table-container {
+  max-width: 75%; /* Réduit à 3/4 */
+  margin: auto;
+}
+
+/* Tableau */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background-color: #fafafa; /* Fond clair */
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* En-têtes */
+th {
+  background-color: #e8f0fe; /* bleu clair */
+  color: #333;
+  padding: 10px;
+  text-align: left;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+/* Lignes */
+td {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #444;
+}
+
+/* Alternance des lignes */
+tr:nth-child(even) {
+  background-color: #f1f5f9; /* gris très clair */
+}
+
+/* Ligne survolée */
+tr:hover {
+  background-color: #dbeafe; /* bleu très clair */
+  transition: background 0.2s ease;
+}
+
+/* Boutons d'action dans la table */
+.actions button {
+  background: #e0e7ff;
+  border: none;
+  padding: 4px 8px;
+  margin: 0 2px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background: #c7d2fe;
+}
