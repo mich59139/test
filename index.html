@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Catalogue des Articles</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <h1>Catalogue des Articles</h1>
@@ -14,14 +14,15 @@
     <span id="status-repo">Repo ❌</span>
     <span id="status-branch">Branche ❌</span>
     <span id="status-file">Fichier ❌</span>
-    <span id="gh-msg"></span>
+    <span id="gh-msg" class="notice"></span>
   </div>
 
-  <!-- Boutons connexion / enregistrement -->
+  <!-- Boutons -->
   <div class="controls">
     <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
     <button id="logout-btn">🚪 Déconnexion</button>
     <button id="save-btn">💾 Enregistrer dans GitHub</button>
+    <button id="init-btn">🧩 Créer data/articles.csv (si manquant)</button>
   </div>
 
   <!-- Formulaire d'ajout -->
@@ -38,7 +39,7 @@
     <button id="save-in-drawer">Ajouter et enregistrer</button>
   </div>
 
-  <!-- Datalists pour autocomplétion -->
+  <!-- Datalists -->
   <datalist id="dl-annee"></datalist>
   <datalist id="dl-numero"></datalist>
   <datalist id="dl-auteurs"></datalist>
@@ -69,7 +70,7 @@
   <!-- Tableau -->
   <div id="articles"></div>
 
-  <!-- Librairies et script -->
+  <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="app.js"></script>
 </body>
