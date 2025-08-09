@@ -89,6 +89,7 @@ async function probePublicAndLoad() {
     const text = await r.text();
     ARTICLES = parseCsvFlexible(text);
     populateFilters();
+    populateDatalists();  // suggestions pour la saisie
     resetFiltersUI();
     render();
     setBadge("status-repo", true);
@@ -108,6 +109,22 @@ function populateFilters(){
   const nu=document.getElementById("filter-numero");
   if (an) an.innerHTML = `<option value="">(toutes)</option>` + uniqSorted(ARTICLES.map(r=>r["Année"])).map(v=>`<option>${v}</option>`).join("");
   if (nu) nu.innerHTML = `<option value="">(tous)</option>`   + uniqSorted(ARTICLES.map(r=>r["Numéro"])).map(v=>`<option>${v}</option>`).join("");
+}
+function populateDatalists(){
+  const fill = (id, arr) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const opts = uniqSorted(arr).slice(0,1000).map(v=>`<option value="${String(v).replaceAll('"','&quot;')}">`).join("");
+    el.innerHTML = opts;
+  };
+  fill("dl-annee",   ARTICLES.map(r=>r["Année"]));
+  fill("dl-numero",  ARTICLES.map(r=>r["Numéro"]));
+  // éclater multi-valeurs par virgule / point-virgule
+  const splitMulti = v => (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean);
+  fill("dl-auteurs", ARTICLES.flatMap(r=>splitMulti(r["Auteur(s)"])));
+  fill("dl-villes",  ARTICLES.flatMap(r=>splitMulti(r["Ville(s)"])));
+  fill("dl-themes",  ARTICLES.flatMap(r=>splitMulti(r["Theme(s)"])));
+  fill("dl-epoque",  ARTICLES.map(r=>r["Epoque"]));
 }
 function applyFiltersSortPaginate(){
   const term=(document.getElementById("search")?.value||"").toLowerCase();
@@ -185,13 +202,12 @@ async function saveToGitHubMerged(newRow){
   const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
   const branch = GITHUB_BRANCH;
 
-  // clé anti‑doublon (Année+Numéro+Titre)
   const key = r => [r["Année"], r["Numéro"], r["Titre"]]
                     .map(v => (v||"").toLowerCase().trim())
                     .join("¦");
 
   for (let attempt = 1; attempt <= 5; attempt++) {
-    // 1) Lire la DERNIÈRE version (sha + contenu)
+    // 1) Lire dernière version
     let sha = null, remoteRows = [];
     const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
 
@@ -207,12 +223,12 @@ async function saveToGitHubMerged(newRow){
       throw new Error(`GET ${get.status}\n${body}`);
     }
 
-    // 2) Re‑fusionner à CHAQUE tentative
+    // 2) Fusion (anti-doublon sur Année+Numéro+Titre)
     const seen   = new Set(remoteRows.map(key));
     const merged = [...remoteRows];
     if (newRow && !seen.has(key(newRow))) merged.push(newRow);
 
-    // 3) PUT avec le sha courant
+    // 3) Commit
     const body = {
       message: sha ? "maj UI (merge append)" : "init + ajout",
       content: encodeB64(toCSV(merged)),
@@ -234,7 +250,7 @@ async function saveToGitHubMerged(newRow){
       const wait = 300 * attempt; // backoff
       console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
       await sleep(wait);
-      continue; // relance la boucle (nouveau GET → merge → PUT)
+      continue;
     }
 
     const errTxt = await put.text();
@@ -258,6 +274,104 @@ async function initCsvIfMissing(){
   alert("CSV initialisé ✅"); await probePublicAndLoad(); resetFiltersUI(); render();
 }
 
+/* ========= IMPORT / EXPORT ========= */
+async function pickLocalCsvText() {
+  return new Promise((resolve, reject) => {
+    const input = document.getElementById("import-file");
+    if (!input) return reject(new Error("input#import-file manquant"));
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      input.value = "";
+      if (!file) return reject(new Error("Aucun fichier sélectionné"));
+      try { resolve(await file.text()); } catch (e) { reject(e); }
+    };
+    input.click();
+  });
+}
+function validateImportedRows(rows) {
+  if (!Array.isArray(rows) || rows.length===0) throw new Error("CSV vide");
+  const must = ["Année","Numéro","Titre"];
+  const missing = must.filter(k => !(k in rows[0]));
+  if (missing.length) {
+    throw new Error("Colonnes manquantes: " + missing.join(", ") + 
+      "\nAttendu: Année, Numéro, Titre, Page(s), Auteur(s), Ville(s), Theme(s), Epoque");
+  }
+}
+async function saveWholeCsvToGithub(importRows, mode /* 'merge' | 'replace' */) {
+  if (!GHTOKEN) { alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+
+  const headers = {
+    Authorization: `token ${GHTOKEN}`,
+    "Accept": "application/vnd.github+json",
+    "Content-Type": "application/json"
+  };
+  const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const branch = GITHUB_BRANCH;
+
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]]
+                    .map(v => (v||"").toLowerCase().trim()).join("¦");
+
+  for (let attempt=1; attempt<=5; attempt++){
+    let sha=null, remote=[];
+    const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+    if (get.status===404) remote=[];
+    else if (get.ok){ const j=await get.json(); sha=j.sha; remote=parseCsvFlexible(decodeB64(j.content)); }
+    else { throw new Error(`GET ${get.status}\n${await get.text()}`); }
+
+    let merged=[];
+    if (mode==="replace") {
+      merged = importRows;
+    } else {
+      const seen = new Set(remote.map(key));
+      merged = remote.slice();
+      for (const r of importRows) if (!seen.has(key(r))) merged.push(r);
+    }
+
+    const body = {
+      message: mode==="replace" ? "import: remplacement complet" : "import: fusion",
+      content: encodeB64(toCSV(merged)),
+      branch,
+      ...(sha ? { sha } : {})
+    };
+    const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
+
+    if (put.ok) {
+      const txt=await put.text(); let commitUrl="";
+      try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
+      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1200);
+      alert(`Import ${mode==="replace"?"(remplacement)": "(fusion)"} OK ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
+      return;
+    }
+    if (put.status===409) { const wait = 300*attempt; await sleep(wait); continue; }
+    throw new Error(`PUT ${put.status}\n${await put.text()}`);
+  }
+  throw new Error("Conflit 409 persistant après 5 tentatives.");
+}
+window._importCsv = async (mode) => {
+  try {
+    if (!mode) mode = "merge";
+    const text = await pickLocalCsvText();
+    const rows = parseCsvFlexible(text);
+    validateImportedRows(rows);
+    const msg = mode==="replace"
+      ? `⚠️ Remplacer TOUTE la base par ${rows.length} lignes ?`
+      : `Fusionner ${rows.length} lignes avec la base existante ?`;
+    if (!confirm(msg)) return;
+    await saveWholeCsvToGithub(rows, mode);
+  } catch(e) {
+    console.error("[IMPORT]", e);
+    alert("Échec import : " + (e?.message || e));
+  }
+};
+window._exportCsv = ()=> {
+  const blob = new Blob([toCSV(ARTICLES||[])], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "articles_export.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
 /* ========= HANDLERS GLOBAUX (onclick HTML) ========= */
 window._save = async ()=>{ try{
   if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
@@ -275,13 +389,14 @@ window._add = async (ev)=>{ try{
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
   ARTICLES.unshift(row); currentPage=1; render();
   if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
-  await saveToGitHubMerged(row);
+  const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
+  try { await saveToGitHubMerged(row); }
+  finally { if (btn) btn.disabled=false; }
 } catch(e){ alert("Add: "+(e?.message||e)); } };
 
 /* ========= EVENTS ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
   await probePublicAndLoad();
-
   document.getElementById("prev")?.addEventListener("click", ()=>{ currentPage=Math.max(1,currentPage-1); render(); });
   document.getElementById("next")?.addEventListener("click", ()=>{ currentPage=currentPage+1; render(); });
   document.getElementById("filter-annee")?.addEventListener("change", ()=>{ document.getElementById("filter-numero").value=""; currentPage=1; render(); });
@@ -289,6 +404,14 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("limit")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("search")?.addEventListener("input", ()=>{ currentPage=1; render(); });
 
-  wireSorting();
+  // Tri
+  document.querySelectorAll("th[data-col]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const col=th.getAttribute("data-col");
+      if (sortCol===col) sortDir = (sortDir==="asc")?"desc":"asc"; else { sortCol=col; sortDir="asc"; }
+      currentPage=1; render();
+    });
+  });
+
   setBadge("status-auth", !!GHTOKEN);
 });
