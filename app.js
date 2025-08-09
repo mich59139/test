@@ -5,6 +5,29 @@ const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv"; // <— sans espace !
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
+async function verifyGithubTarget() {
+  if (!GHTOKEN) { alert("Pas de token (🔐 d’abord)"); return; }
+  const H = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
+
+  const repoUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`;
+  const brUrl   = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
+  const fileUrl = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+
+  const r1 = await fetch(repoUrl, { headers: H });   console.log("repo", r1.status);
+  const r2 = await fetch(brUrl,   { headers: H });   console.log("branch", r2.status);
+  const r3 = await fetch(fileUrl, { headers: H });   console.log("contents", r3.status);
+
+  if (!r1.ok) return alert("Repo introuvable (owner/repo ?)");
+  if (!r2.ok) return alert("Branche introuvable (fais un 1er commit sur main)");
+  if (r3.status === 404) {
+    alert("Le fichier data/articles.csv n'existe pas encore : je vais le créer au prochain 💾");
+  } else if (!r3.ok) {
+    alert("Erreur accès fichier: " + r3.status);
+  } else {
+    const j = await r3.json();
+    console.log("sha courant:", j.sha);
+  }
+}
 /* ========= TOKEN EN SESSION ========= */
 let GHTOKEN = sessionStorage.getItem("ghtoken") || null;
 const setToken = t => { GHTOKEN = t?.trim() || null; GHTOKEN ? sessionStorage.setItem("ghtoken", GHTOKEN) : sessionStorage.removeItem("ghtoken"); };
