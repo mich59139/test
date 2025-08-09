@@ -17,7 +17,7 @@ body{
 
 /* Conteneur centré + largeur max ~3/4 */
 .shell {
-  max-width: 1400px; /* un peu plus large */
+  max-width: 1600px; /* un peu plus large */
   margin: 0 auto;
   padding: 0 8px;
 }
