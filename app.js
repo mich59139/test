@@ -360,7 +360,10 @@ function wireUI(){
   if (lim) lim.addEventListener("change", ()=>{ currentPage=1; render(); });
   if (sch) sch.addEventListener("input", ()=>{ currentPage=1; render(); });
 
-  document.getElementById("login-btn")?.addEventListener("click", githubLoginInline);
+  document.getElementById("login-btn")?.addEventListener("click", async () => {
+  await githubLoginInline();
+  await verifyGithubTarget(); // debug : vérifie owner/repo/branche/fichier
+});
   document.getElementById("logout-btn")?.addEventListener("click", ()=>{ setToken(null); const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub"; alert("Token oublié (session nettoyée)."); });
   document.getElementById("save-btn")?.addEventListener("click", saveToGitHubMerged);
 
