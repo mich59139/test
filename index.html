@@ -4,71 +4,73 @@
   <meta charset="UTF-8">
   <title>Catalogue des Articles</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
+  <h1>Catalogue des Articles</h1>
 
-<h1>Catalogue des Articles</h1>
-
-<div id="github-status" class="status-panel">
-  <span id="status-auth" class="status-badge">Auth ❌</span>
-  <span id="status-repo" class="status-badge">Repo ❌</span>
-  <span id="status-branch" class="status-badge">Branch ❌</span>
-  <span id="status-file" class="status-badge">Fichier ❌</span>
-</div>
-<div id="gh-msg" class="notice"></div>
-
-<div class="controls">
-  <button id="login-btn">🔐 Se connecter GitHub</button>
-  <button id="logout-btn">🚪 Déconnexion</button>
-  <button id="save-btn">💾 Enregistrer dans GitHub</button>
-</div>
-
-<div id="form-container">
-  <h2>Ajouter un article</h2>
-  <div class="row">
-    <input name="Année"  placeholder="Année"  list="dl-annee">
-    <input name="Numéro" placeholder="Numéro" list="dl-numero">
-    <input name="Titre"  placeholder="Titre">
-    <input name="Page(s)" placeholder="Pages">
-    <input name="Auteur(s)" placeholder="Auteur(s)" list="dl-auteurs">
-    <input name="Ville(s)"  placeholder="Ville(s)"  list="dl-villes">
-    <input name="Theme(s)"  placeholder="Thème(s)" list="dl-themes">
-    <input name="Epoque"   placeholder="Période"   list="dl-epoques">
+  <!-- Panneau d'état GitHub -->
+  <div class="status-bar">
+    <span id="status-auth">Auth ❌</span>
+    <span id="status-repo">Repo ❌</span>
+    <span id="status-branch">Branche ❌</span>
+    <span id="status-file">Fichier ❌</span>
+    <span id="gh-msg"></span>
   </div>
-  <div class="row">
+
+  <!-- Boutons connexion / enregistrement -->
+  <div class="controls">
+    <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
+    <button id="logout-btn">🚪 Déconnexion</button>
+    <button id="save-btn">💾 Enregistrer dans GitHub</button>
+  </div>
+
+  <!-- Formulaire d'ajout -->
+  <div id="form-container">
+    <h2>Ajouter un article</h2>
+    <label>Année : <input name="Année" list="dl-annee"></label>
+    <label>Numéro : <input name="Numéro" list="dl-numero"></label>
+    <label>Titre : <input name="Titre"></label>
+    <label>Page(s) : <input name="Page(s)"></label>
+    <label>Auteur(s) : <input name="Auteur(s)" list="dl-auteurs"></label>
+    <label>Ville(s) : <input name="Ville(s)" list="dl-villes"></label>
+    <label>Thème(s) : <input name="Theme(s)" list="dl-themes"></label>
+    <label>Période : <input name="Epoque" list="dl-epoques"></label>
     <button id="save-in-drawer">Ajouter et enregistrer</button>
   </div>
-</div>
 
-<datalist id="dl-annee"></datalist>
-<datalist id="dl-numero"></datalist>
-<datalist id="dl-auteurs"></datalist>
-<datalist id="dl-villes"></datalist>
-<datalist id="dl-themes"></datalist>
-<datalist id="dl-epoques"></datalist>
+  <!-- Datalists pour autocomplétion -->
+  <datalist id="dl-annee"></datalist>
+  <datalist id="dl-numero"></datalist>
+  <datalist id="dl-auteurs"></datalist>
+  <datalist id="dl-villes"></datalist>
+  <datalist id="dl-themes"></datalist>
+  <datalist id="dl-epoques"></datalist>
 
-<div class="filters">
-  <label>Année :
-    <select id="filter-annee"><option value="">(toutes)</option></select>
-  </label>
-  <label>Numéro :
-    <select id="filter-numero"><option value="">(tous)</option></select>
-  </label>
-  <label>Afficher :
-    <select id="limit">
-      <option value="50" selected>50</option>
-      <option value="100">100</option>
-      <option value="all">Tout</option>
-    </select>
-  </label>
-  <label>Recherche :
-    <input type="text" id="search" placeholder="Rechercher...">
-  </label>
-</div>
+  <!-- Filtres -->
+  <div id="filters">
+    <label>Afficher :
+      <select id="limit">
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="all">Tout</option>
+      </select>
+    </label>
+    <label>Année :
+      <select id="filter-annee"></select>
+    </label>
+    <label>Numéro :
+      <select id="filter-numero"></select>
+    </label>
+    <label>Recherche :
+      <input type="text" id="search" placeholder="Chercher dans tous les champs">
+    </label>
+  </div>
 
-<div id="articles"></div>
+  <!-- Tableau -->
+  <div id="articles"></div>
 
-<script src="app.js"></script>
+  <!-- Librairies et script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
