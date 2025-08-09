@@ -248,3 +248,45 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
   setBadge("status-auth", !!GHTOKEN);
 });
+// Handler robuste pour le bouton "Ajouter et enregistrer"
+window._add = async (ev) => {
+  try {
+    // si jamais c'est dans un form par erreur, on bloque la soumission
+    if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+
+    // 1) lire les champs (IDs EXACTS)
+    const get = id => (document.getElementById(id)?.value || "").trim();
+    const row = {
+      "Année":    get("add-annee"),
+      "Numéro":   get("add-numero"),
+      "Titre":    get("add-titre"),
+      "Page(s)":  get("add-pages"),
+      "Auteur(s)":get("add-auteurs"),
+      "Ville(s)": get("add-villes"),
+      "Theme(s)": get("add-themes"),
+      "Epoque":   get("add-epoque"),
+    };
+
+    // 2) validations minimales
+    if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+
+    // 3) affichage immédiat dans le tableau
+    if (!Array.isArray(ARTICLES)) window.ARTICLES = [];
+    ARTICLES.unshift(row);
+    if (typeof render === "function") render();
+
+    // 4) si pas connecté, on s'arrête après l'ajout local
+    if (!GHTOKEN) {
+      alert("Ajout local OK ✅\nPour enregistrer dans GitHub : cliquez d’abord sur 🔐 puis réessayez.");
+      return;
+    }
+
+    // 5) enregistrement GitHub
+    console.log("[ADD] saving row:", row);
+    await saveToGitHubMerged(row);   // ← utilise ta fonction de sauvegarde existante
+    alert("Article ajouté et enregistré ✅");
+  } catch (e) {
+    console.error("[ADD] error", e);
+    alert("Erreur à l'ajout : " + (e?.message || e));
+  }
+};
