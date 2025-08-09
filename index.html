@@ -9,7 +9,6 @@
 <body>
   <h1>Catalogue des Articles</h1>
 
-  <!-- Badges d'état -->
   <div class="badges">
     Auth: <span id="status-auth">❌</span>
     Repo: <span id="status-repo">❌</span>
@@ -18,17 +17,13 @@
     <span id="gh-msg" class="notice"></span>
   </div>
 
-  <!-- Boutons -->
   <div class="controls">
-<button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
-<button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-<button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
-<button id="init-btn"   onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
-...
-
+    <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
+    <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+    <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
+    <button id="init-btn"   onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
   </div>
 
-  <!-- Formulaire d'ajout -->
   <div class="form-add">
     <h2>Ajouter un article</h2>
     <input type="text" id="add-annee"   placeholder="Année">
@@ -39,10 +34,9 @@
     <input type="text" id="add-villes"  placeholder="Ville(s)">
     <input type="text" id="add-themes"  placeholder="Thème(s)">
     <input type="text" id="add-epoque"  placeholder="Période">
-    <button id="add-btn">Ajouter et enregistrer</button>
+    <button id="add-btn" onclick="window._add?.()">Ajouter et enregistrer</button>
   </div>
 
-  <!-- Filtres -->
   <div class="filters">
     <label>Afficher :
       <select id="limit">
@@ -62,7 +56,6 @@
     </label>
   </div>
 
-  <!-- Tableau -->
   <div id="articles">
     <table>
       <thead>
@@ -86,9 +79,7 @@
     </div>
   </div>
 
-  <!-- Librairie CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <!-- App -->
   <script src="app.js"></script>
 </body>
 </html>
