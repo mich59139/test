@@ -1,10 +1,12 @@
-/* ========= CONFIG (adapter si besoin) ========= */
+/* ========= CONFIG ========= */
 const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
-const RAW_URL = "https://raw.githubusercontent.com/mich59139/test/main/data/articles.csv";
-let GHTOKEN = localStorage.getItem("ghtoken") || null;
+// Lecture via RAW uniquement (fiable, pas de 403 API)
+const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
+
+let GHTOKEN  = localStorage.getItem("ghtoken") || null;
 let ARTICLES = [];
 let currentPage = 1;
 let sortCol = null, sortDir = "asc";
@@ -15,40 +17,52 @@ const esc = v => { const s=(v??"").toString(); return /[",\n]/.test(s)?`"${s.rep
 const toCSV = rows => [HEADERS.join(",")].concat(rows.map(r=>HEADERS.map(h=>esc(r[h])).join(","))).join("\n");
 const decodeB64 = b64 => decodeURIComponent(escape(atob(b64)));
 const encodeB64 = str => btoa(unescape(encodeURIComponent(str)));
-const setBadge = (id, ok) => { const el=document.getElementById(id); if(!el)return; el.textContent = ok?"✅":"❌"; el.style.color = ok? "#16a34a":"#dc2626"; };
+const setBadge = (id, ok, extra="") => { const el=document.getElementById(id); if(!el)return; el.textContent = ok?`✅${extra}`:`❌`; el.style.color = ok? "#16a34a":"#dc2626"; };
 const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr"));
 
-/* ========= PARSEUR CSV ROBUSTE ========= */
+/* ========= PARSEUR ROBUSTE (accents + ; ou ,) ========= */
+function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 function normalizeHeader(h) {
-  const t = (h||"").trim();
-  if (/^annee$/i.test(t) || /^année$/i.test(t)) return "Année";
-  if (/^numero$/i.test(t) || /^numéro$/i.test(t)) return "Numéro";
-  if (/^titre$/i.test(t)) return "Titre";
-  if (/^pages?$/i.test(t)) return "Page(s)";
-  if (/^auteurs?(\(s\))?$/i.test(t)) return "Auteur(s)";
-  if (/^villes?(\(s\))?$/i.test(t)) return "Ville(s)";
-  if (/^themes?(\(s\))?$/i.test(t)) return "Theme(s)";
-  if (/^(periode|période|epoque|époque)$/i.test(t)) return "Epoque";
-  return t;
+  const t = stripAccents((h||"").trim()).replace(/\s+/g," ").replace(/[’']/g,"'").toLowerCase();
+  if (t==="annee" || t==="année") return "Année";
+  if (t==="numero" || t==="numéro" || t==="n°" || t==="no" || t==="n°/numero") return "Numéro";
+  if (t.startsWith("titre")) return "Titre";
+  if (t==="page" || t==="pages" || t==="page(s)") return "Page(s)";
+  if (t.startsWith("auteur")) return "Auteur(s)";
+  if (t.startsWith("ville")) return "Ville(s)";
+  if (t.startsWith("theme") || t.startsWith("thème")) return "Theme(s)";
+  if (t==="epoque" || t==="époque" || t==="periode" || t==="période") return "Epoque";
+  return (h||"").trim();
 }
-function papaParseWith(delim, text){
-  return Papa.parse(text, { header:true, skipEmptyLines:true, delimiter:delim, transformHeader: normalizeHeader });
+function detectDelimiter(text){
+  const first = (text.split(/\r?\n/)[0]||"");
+  const c = (first.match(/,/g)||[]).length;
+  const s = (first.match(/;/g)||[]).length;
+  return s>c ? ";" : ",";
 }
 function parseCsvFlexible(text) {
-  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-  let r = papaParseWith(",", text);
-  if ((r.meta.fields||[]).length<=1 && text.includes(";")) r = papaParseWith(";", text);
-  const rows = (r.data||[]).map(row => ({
-    "Année": row["Année"] ?? "",
-    "Numéro": row["Numéro"] ?? "",
-    "Titre": row["Titre"] ?? "",
-    "Page(s)": row["Page(s)"] ?? "",
-    "Auteur(s)": row["Auteur(s)"] ?? "",
-    "Ville(s)": row["Ville(s)"] ?? "",
-    "Theme(s)": row["Theme(s)"] ?? "",
-    "Epoque": row["Epoque"] ?? row["Période"] ?? row["Periode"] ?? ""
+  if (!text) return [];
+  if (text.charCodeAt(0)===0xFEFF) text=text.slice(1); // BOM
+  const delim = detectDelimiter(text);
+  const res = Papa.parse(text, {
+    header: true,
+    skipEmptyLines: "greedy",
+    delimiter: delim,
+    transformHeader: normalizeHeader
+  });
+  const rows = (res.data||[]).map(row => ({
+    "Année":     row["Année"]    ?? row["annee"] ?? "",
+    "Numéro":    row["Numéro"]   ?? row["numero"] ?? "",
+    "Titre":     row["Titre"]    ?? "",
+    "Page(s)":   row["Page(s)"]  ?? row["Pages"] ?? "",
+    "Auteur(s)": row["Auteur(s)"]?? row["Auteurs"] ?? "",
+    "Ville(s)":  row["Ville(s)"] ?? row["Villes"] ?? "",
+    "Theme(s)":  row["Theme(s)"] ?? row["Thème(s)"] ?? row["Themes"] ?? "",
+    "Epoque":    row["Epoque"]   ?? row["Période"] ?? row["Periode"] ?? ""
   }));
-  return rows.filter(r => Object.values(r).some(v => (v||"").toString().trim()!==""));
+  const cleaned = rows.filter(r => Object.values(r).some(v => (v||"").toString().trim()!==""));
+  console.log(`[RAW] ${cleaned.length} lignes parsées (delim="${delim}")`);
+  return cleaned;
 }
 
 /* ========= RESET FILTRES ========= */
@@ -64,36 +78,37 @@ function resetFiltersUI() {
   currentPage = 1;
 }
 
-/* ========= LECTURE PUBLIQUE + BADGES ========= */
+/* ========= LECTURE PUBLIQUE (RAW UNIQUEMENT) ========= */
 async function probePublicAndLoad() {
   try {
-    // Lire UNIQUEMENT via RAW (pas d'API → pas de 403 CORS/rate limit)
-    const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache: "no-store" });
+    const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache:"no-store" });
     if (!r.ok) {
       document.getElementById("articles-body").innerHTML =
         `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
-      // Badges: on ne les met pas à jour via l'API pour éviter le 403.
+      setBadge("status-repo", false);
+      setBadge("status-branch", false);
+      setBadge("status-file", false);
       return;
     }
-
     const text = await r.text();
     ARTICLES = parseCsvFlexible(text);
-
-    // UI
     populateFilters();
     resetFiltersUI();
     render();
-
-    // On met les badges au vert si la lecture RAW a réussi
-    setBadge("status-repo",   true);
+    setBadge("status-repo", true);
     setBadge("status-branch", true);
-    setBadge("status-file",   true);
+    setBadge("status-file", true, ` (${ARTICLES.length})`);
   } catch (e) {
     console.error(e);
     document.getElementById("articles-body").innerHTML =
       `<tr><td colspan="8">Impossible de charger les données.</td></tr>`;
+    setBadge("status-repo", false);
+    setBadge("status-branch", false);
+    setBadge("status-file", false);
   }
 }
+window._reloadRaw = async ()=>{ await probePublicAndLoad(); };
+
 /* ========= UI ========= */
 function populateFilters(){
   const an=document.getElementById("filter-annee");
@@ -165,7 +180,7 @@ async function githubLoginInline(){
 window._login  = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
 window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadge("status-auth", false); alert("Déconnecté."); };
 
-/* ========= SAVE (headers GitHub autorisés) ========= */
+/* ========= SAVE (API écriture uniquement) ========= */
 async function saveToGitHubMerged(newRow){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
   const headers = {
@@ -175,19 +190,20 @@ async function saveToGitHubMerged(newRow){
   };
   const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
 
-  // lire distant
+  // Lire distant (pour sha et fusion)
   const get = await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
   let sha=null, remoteRows=[];
   if (get.status===404) remoteRows=[];
   else if (get.ok){ const j=await get.json(); sha=j.sha; remoteRows=parseCsvFlexible(decodeB64(j.content)); }
   else { const t=await get.text(); alert(`Lecture KO: ${get.status}\n${t}`); throw new Error("load failed"); }
 
-  // merge append-only (évite doublons Année+Numéro+Titre)
+  // Fusion append-only (évite doublons Année+Numéro+Titre)
   const key=r=>[r["Année"],r["Numéro"],r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
   const seen=new Set(remoteRows.map(key));
   const merged=[...remoteRows];
   if (newRow && !seen.has(key(newRow))) merged.push(newRow);
 
+  // PUT (sans Cache-Control)
   const bodyBase={ message: sha?"maj UI (update)":"init + ajout", content: encodeB64(toCSV(merged)), branch:GITHUB_BRANCH };
   let attempts=0; let put, bodyTxt="";
   while (attempts<3){
@@ -200,12 +216,10 @@ async function saveToGitHubMerged(newRow){
   bodyTxt = await put.text();
   if (!put.ok){ alert(`Commit KO: ${put.status}\n${bodyTxt.slice(0,500)}`); throw new Error("put failed"); }
 
-  // succès → URL du commit
+  // succès → recharger RAW + reset filtres
   let commitUrl=""; try{ const j=JSON.parse(bodyTxt); commitUrl=j?.commit?.html_url||""; }catch{}
-  // relecture publique + reset filtres
   setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1200);
   alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
-  if (commitUrl) console.log("Commit:", commitUrl);
 }
 
 /* ========= INIT CSV SI MANQUANT ========= */
@@ -225,7 +239,7 @@ async function initCsvIfMissing(){
 /* ========= HANDLERS GLOBAUX (onclick HTML) ========= */
 window._save = async ()=>{ try{
   if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
-  await saveToGitHubMerged(ARTICLES[0]); // déclenche le merge/commit
+  await saveToGitHubMerged(ARTICLES[0]);
 } catch(e){ alert("Save: "+(e?.message||e)); } };
 
 window._init = async ()=>{ try{ await initCsvIfMissing(); }catch(e){ alert("Init: "+e.message); } };
@@ -238,7 +252,7 @@ window._add = async (ev)=>{ try{
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
   ARTICLES.unshift(row); currentPage=1; render();
-  if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer dans GitHub, cliquez 🔐 puis réessayez."); return; }
+  if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
   await saveToGitHubMerged(row);
 } catch(e){ alert("Add: "+(e?.message||e)); } };
 
