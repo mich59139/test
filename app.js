@@ -1,4 +1,4 @@
-// Configuration
+// Config GitHub
 const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
@@ -36,8 +36,54 @@ async function saveToGitHub(updatedCsvText) {
   const putRes = await fetch(contentsUrl, { method: "PUT", headers, body: JSON.stringify(body) });
   if (!putRes.ok) { alert(`Échec du commit : ${putRes.status}\n${await putRes.text()}`); return; }
   alert("Modifications enregistrées ✅");
+  await reloadCsv(true);
 }
 
+// Simulation données
+let articles = [
+  ["2025","1","Article test","1-2","Jean Dupont","Vizille","Histoire","Moderne"]
+];
+
+function buildCsvFromArticles(data) {
+  let header = "Année,Numéro,Titre,Page(s),Auteur(s),Ville(s),Theme(s),Epoque";
+  return header + "\n" + data.map(r => r.join(",")).join("\n");
+}
+
+function render() {
+  const container = document.getElementById("articles");
+  let html = "<table><thead><tr>";
+  ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"].forEach(h => { html += `<th>${h}</th>`; });
+  html += "</tr></thead><tbody>";
+  articles.forEach(row => { html += "<tr>" + row.map(c => `<td>${c}</td>`).join("") + "</tr>"; });
+  html += "</tbody></table>";
+  container.innerHTML = html;
+}
+
+async function reloadCsv(force=false) {
+  render();
+}
+
+// Événements
 document.getElementById("login-btn").addEventListener("click", githubLoginInline);
 document.getElementById("logout-btn").addEventListener("click", () => { setToken(null); alert("Token oublié (session nettoyée)."); });
-document.getElementById("save-btn").addEventListener("click", () => { const csv = "Année,Numéro,Titre\n2025,1,Article test"; saveToGitHub(csv); });
+document.getElementById("save-btn").addEventListener("click", () => {
+  const csv = buildCsvFromArticles(articles);
+  saveToGitHub(csv);
+});
+document.getElementById("save-in-drawer").addEventListener("click", () => {
+  const newRow = [
+    document.getElementById("annee").value,
+    document.getElementById("numero").value,
+    document.getElementById("titre").value,
+    document.getElementById("pages").value,
+    document.getElementById("auteurs").value,
+    document.getElementById("villes").value,
+    document.getElementById("themes").value,
+    document.getElementById("epoque").value
+  ];
+  articles.push(newRow);
+  const csv = buildCsvFromArticles(articles);
+  saveToGitHub(csv);
+});
+
+document.addEventListener("DOMContentLoaded", () => { reloadCsv(true); });

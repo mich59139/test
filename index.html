@@ -10,7 +10,23 @@
     <button id="login-btn">🔐 Se connecter GitHub</button>
     <button id="logout-btn">🚪 Déconnexion</button>
     <button id="save-btn">💾 Enregistrer dans GitHub</button>
-    <div id="table-container"></div>
+    <div id="toolbar"></div>
+    <div id="articles"></div>
+
+    <!-- Boîte d'ajout -->
+    <div id="form-container" style="border:1px solid #ccc; padding:10px; margin-top:20px;">
+        <h2>Ajouter un article</h2>
+        <input type="text" placeholder="Année" id="annee"><br>
+        <input type="text" placeholder="Numéro" id="numero"><br>
+        <input type="text" placeholder="Titre" id="titre"><br>
+        <input type="text" placeholder="Pages" id="pages"><br>
+        <input type="text" placeholder="Auteur(s)" id="auteurs"><br>
+        <input type="text" placeholder="Ville(s)" id="villes"><br>
+        <input type="text" placeholder="Thème(s)" id="themes"><br>
+        <input type="text" placeholder="Époque" id="epoque"><br>
+        <button id="save-in-drawer">💾 Enregistrer dans GitHub</button>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
