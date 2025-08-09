@@ -1,26 +1,26 @@
-// ===== Config dépôt =====
+/* ========= CONFIG ========= */
 const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
-// ===== Token en session =====
+/* ========= TOKEN EN SESSION ========= */
 let GHTOKEN = sessionStorage.getItem("ghtoken") || null;
 const setToken = t => { GHTOKEN = t?.trim() || null; GHTOKEN ? sessionStorage.setItem("ghtoken", GHTOKEN) : sessionStorage.removeItem("ghtoken"); };
-const headersAuth = () => (GHTOKEN ? { Authorization: `token ${GHTOKEN}`, Accept: "application/vnd.github+json", "Cache-Control":"no-cache" } : {});
 
-// ===== État =====
-let articles = []; // objets
+/* ========= ETAT ========= */
+let articles = [];               // objets normalisés
+let pendingAdds = [];            // lignes ajoutées via le formulaire (append-only)
+const APPEND_ONLY = true;        // évite d’écraser, on ajoute au CSV distant
 let currentPage = 1;
 let rowsPerPage = 50;
 let currentSort = { col: null, dir: "asc" };
 
-// ===== Helpers =====
+/* ========= HELPERS ========= */
 const norm = s => (s ?? "").toString().replace(/\u00A0/g," ").replace(/\u200B/g,"").trim();
 const deaccent = s => norm(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-function uniqueSorted(arr){ return [...new Set(arr.filter(v=>norm(v)!==""))].sort((a,b)=>(""+a).localeCompare(""+b,"fr")); }
-function setStatus(msg){ const s=document.getElementById("status"); if (s) s.textContent = msg || ""; }
+const canonKey = s => deaccent(s||"").toLowerCase();
 
 function normalizeKeys(row) {
   const out = {};
@@ -45,67 +45,76 @@ function parseCsv(delim, text) {
   return { rows, meta: r.meta };
 }
 function parseCsvFlexible(text) {
-  if (text && text.charCodeAt && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   let { rows, meta } = parseCsv(",", text);
   if ((meta.fields||[]).length<=1 && text.includes(";")) ({ rows, meta } = parseCsv(";", text));
   return rows;
 }
 
-function buildCsvFromArticles(rows) {
-  const headers = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
-  const lines = [headers.join(",")].concat(
-    rows.map(r =>
-      headers.map(h => (r[h] ?? "").toString().replaceAll('"','""'))
-             .map(v => /[",\n]/.test(v) ? `"${v}"` : v)
-             .join(",")
-    )
-  );
-  return lines.join("\n");
-}
-// Normalisation basique
-const trimLite = s => (s ?? "").toString()
-  .replace(/\u00A0/g," ")      // NBSP
-  .replace(/\u200B/g,"")       // zero-width
-  .replace(/[“”«»]/g,'"')      // guillemets
-  .replace(/[’]/g,"'")         // apostrophe
-  .replace(/\s*([,;\/\|])\s*/g,"$1") // espaces autour séparateurs
-  .replace(/\s{2,}/g," ")
-  .trim();
+function uniqueSorted(arr){ return [...new Set(arr.filter(v=>norm(v)!==""))].sort((a,b)=>(""+a).localeCompare(""+b,"fr")); }
 
-// Canonique pour clé d'unicité (sans accents, en minuscules)
-const canonKey = s => trimLite(s)
-  .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-  .toLowerCase();
-
-// Découpe multi-valeurs (auteurs, thèmes, villes…)
+/* multi-valeurs (auteurs/thèmes/villes) */
 function splitMulti(value) {
-  const raw = trimLite(value);
+  const raw = norm(value);
   if (!raw) return [];
   return raw
-    .split(/[;,/|·•]/)                          // séparateurs usuels
-    .map(v => v.replace(/^\W+|\W+$/g,""))       // ponctuation en bord
-    .map(v => v.replace(/\s*-\s*/g,"-"))        // tirets propres
+    .split(/[;,/|·•]/)
+    .map(v => v.replace(/^\W+|\W+$/g,""))
+    .map(v => v.replace(/\s*-\s*/g,"-"))
     .map(v => v.replace(/\s{2,}/g," ").trim())
-    .filter(v => v && v !== "i" && v.length >= 2); // ⛔️ enlève “i” seul & trop court
+    .filter(v => v && v !== "i" && v.length >= 2);
 }
-
-// Construit une liste unique mais garde le premier libellé “joli”
 function uniquePretty(list) {
-  const map = new Map(); // key -> pretty
+  const map = new Map();
   for (const item of list) {
-    const pretty = trimLite(item);
+    const pretty = norm(item);
     if (!pretty) continue;
     const key = canonKey(pretty);
-    if (!key) continue;
-    // Filtre des bruits typiques
-    if (key === "i") continue;
-    // évite éléments 100% numériques isolés (optionnel pour auteurs/thèmes)
-    if (/^\d+$/.test(pretty)) continue;
+    if (!key || key === "i") continue;
+    if (/^\d+$/.test(pretty)) continue; // évite nombres isolés
     if (!map.has(key)) map.set(key, pretty);
   }
   return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'fr'));
 }
-// ===== UI Populate =====
+
+/* clé d’unicité pour doublons (évite d’ajouter deux fois la même entrée) */
+const rowKey = r => [r["Année"], r["Numéro"], r["Titre"]].map(x => canonKey(x||"")).join("¦");
+
+/* ========= CHARGEMENT ========= */
+async function reloadCsv(reset=false) {
+  const url = `${CSV_URL_BASE}?ts=${Date.now()}`;
+  const res = await fetch(url, { cache:"no-store" });
+  if (!res.ok) throw new Error("HTTP "+res.status);
+  const text = await res.text();
+  articles = parseCsvFlexible(text);
+
+  if (reset) {
+    const s=document.getElementById("search"); if (s) s.value="";
+    const fa=document.getElementById("filter-annee"); if (fa) fa.value="";
+    const fn=document.getElementById("filter-numero"); if (fn) fn.value="";
+    const lim=document.getElementById("limit"); if (lim) lim.value="50";
+    currentPage=1;
+  }
+  populateFilters();
+  populateDatalists();
+  render();
+}
+
+/* Chargement immédiat depuis l’API GitHub (après commit, pour éviter l’attente CDN) */
+async function loadCsvFromApi() {
+  if (!GHTOKEN) return;
+  const headers = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  const r = await fetch(url, { headers });
+  if (!r.ok) throw new Error(`API contents ${r.status}`);
+  const j = await r.json();
+  const csv = decodeURIComponent(escape(atob(j.content)));
+  articles = parseCsvFlexible(csv);
+  populateFilters(); populateDatalists();
+  currentPage = 1; render();
+}
+
+/* ========= POPULATE UI ========= */
 function populateFilters() {
   const an = document.getElementById("filter-annee");
   const nu = document.getElementById("filter-numero");
@@ -116,28 +125,20 @@ function populateFilters() {
 function populateDatalists() {
   const fill = (id, items) => {
     const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = uniquePretty(items).map(v=>`<option value="${v}">`).join("");
+    if (el) el.innerHTML = uniquePretty(items).map(v=>`<option value="${v}">`).join("");
   };
-
-  // Auteurs/Thèmes/Villes peuvent être multiples par ligne
   const auteurs = articles.flatMap(a => splitMulti(a["Auteur(s)"]));
   const themes  = articles.flatMap(a => splitMulti(a["Theme(s)"]));
   const villes  = articles.flatMap(a => splitMulti(a["Ville(s)"]));
-
-  // Année / Numéro : valeurs simples
-  const annees  = articles.map(a => trimLite(a["Année"]));
-  const numeros = articles.map(a => trimLite(a["Numéro"]));
-
-  fill("dl-annee",   annees);
-  fill("dl-numero",  numeros);
+  fill("dl-annee",   articles.map(a=>a["Année"]));
+  fill("dl-numero",  articles.map(a=>a["Numéro"]));
   fill("dl-auteurs", auteurs);
   fill("dl-villes",  villes);
   fill("dl-themes",  themes);
-  fill("dl-epoques", articles.map(a => trimLite(a["Epoque"])));
+  fill("dl-epoques", articles.map(a=>a["Epoque"]));
 }
 
-// ===== Filtrage / Tri / Pagination =====
+/* ========= FILTRES / TRI / PAGINATION / RENDER ========= */
 function applyAllFilters(data){
   const term   = (document.getElementById("search")?.value || "").toLowerCase();
   const annee  = document.getElementById("filter-annee")?.value || "";
@@ -159,7 +160,6 @@ function sortBy(col){
   else currentSort = { col, dir:"asc" };
   currentPage=1; render();
 }
-
 function render(){
   const container = document.getElementById("articles");
   const all = applyAllFilters(articles);
@@ -173,12 +173,12 @@ function render(){
   const arrow = c => currentSort.col===c ? (currentSort.dir==="asc"?"▲":"▼") : "";
 
   let html = `<table><thead><tr>
-    <th onclick="sortBy('Année')">Année <span class="arrow">${arrow('Année')}</span></th>
-    <th onclick="sortBy('Numéro')">Numéro <span class="arrow">${arrow('Numéro')}</span></th>
-    <th onclick="sortBy('Titre')">Titre <span class="arrow">${arrow('Titre')}</span></th>
-    <th onclick="sortBy('Auteur(s)')">Auteur(s) <span class="arrow">${arrow('Auteur(s)')}</span></th>
-    <th onclick="sortBy('Theme(s)')">Thème(s) <span class="arrow">${arrow('Theme(s)')}</span></th>
-    <th onclick="sortBy('Epoque')">Période <span class="arrow">${arrow('Epoque')}</span></th>
+    <th onclick="sortBy('Année')">Année ${arrow('Année')}</th>
+    <th onclick="sortBy('Numéro')">Numéro ${arrow('Numéro')}</th>
+    <th onclick="sortBy('Titre')">Titre ${arrow('Titre')}</th>
+    <th onclick="sortBy('Auteur(s)')">Auteur(s) ${arrow('Auteur(s)')}</th>
+    <th onclick="sortBy('Theme(s)')">Thème(s) ${arrow('Theme(s)')}</th>
+    <th onclick="sortBy('Epoque')">Période ${arrow('Epoque')}</th>
   </tr></thead><tbody>`;
 
   html += page.map(r=>`
@@ -201,138 +201,131 @@ function render(){
   container.innerHTML = html;
 }
 
-// ===== Chargement CSV (raw) =====
-async function reloadCsv(resetFilters=false) {
-  const url = `${CSV_URL_BASE}?ts=${Date.now()}`;
-  const res = await fetch(url, { cache:"no-store" });
-  if (!res.ok) throw new Error("HTTP "+res.status);
-  const text = await res.text();
-  articles = parseCsvFlexible(text);
-
-  if (resetFilters) {
-    document.getElementById("search").value="";
-    document.getElementById("filter-annee").value="";
-    document.getElementById("filter-numero").value="";
-    const lim=document.getElementById("limit"); if (lim) lim.value="50";
-    currentPage=1;
-  }
-  populateFilters();
-  populateDatalists();
-  render();
-}
-
-// ===== Chargement immédiat via API (pas de cache) =====
-async function loadCsvFromApi() {
-  if (!GHTOKEN) return;
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
-  const r = await fetch(url, { headers: headersAuth() });
-  if (!r.ok) throw new Error(`API contents ${r.status}`);
-  const j = await r.json();
-  const csv = decodeURIComponent(escape(atob(j.content)));
-  articles = parseCsvFlexible(csv);
-  populateFilters();
-  populateDatalists();
-  currentPage=1;
-  render();
-}
-
-// ===== Login =====
-async function githubLoginInline() {
-  const t = prompt("Collez votre token GitHub (scope public_repo) :");
-  if (!t) return;
-  setToken(t);
-  // test d'accès léger
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
-    const r = await fetch(url, { headers: headersAuth() });
-    if (!r.ok && r.status!==404) { throw new Error("HTTP "+r.status); }
-    const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)";
-    alert("Connecté à GitHub ✅");
-  } catch(e) {
-    setToken(null);
-    alert("Token invalide ou droits insuffisants.");
-  }
-}
-
-// ===== SAVE avec merge + gestion 409 + refresh instantané =====
-function toBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
-
-async function getLatestShaAndRows() {
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
-  const r = await fetch(url, { headers: headersAuth() });
-  if (r.status===404) return { sha:null, rows:[] };
-  if (!r.ok) throw new Error(`GET contents ${r.status}: ${await r.text()}`);
-  const j = await r.json();
-  const csv = decodeURIComponent(escape(atob(j.content)));
-  return { sha: j.sha, rows: parseCsvFlexible(csv) };
-}
-
-async function saveToGitHubMerged() {
-  if (!GHTOKEN) { alert("Connectez-vous d’abord (🔐)."); return; }
-  setStatus("Enregistrement…");
-  // Branche check
-  const br = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches/${encodeURIComponent(GITHUB_BRANCH)}`, { headers: headersAuth() });
-  if (!br.ok){ setStatus(""); alert("Branche introuvable. Créez un premier commit (README) sur main."); return; }
-
-  // Toujours partir de la dernière version distante
-  let { sha, rows: remoteRows } = await getLatestShaAndRows();
-
-  // Merge simple (clé Titre+Numéro+Année, priorité à la vue locale)
-  const key = r => [r["Titre"], r["Numéro"], r["Année"]].map(v=>v||"").join("¦");
-  const map = new Map(remoteRows.map(r => [key(r), r]));
-  for (const r of articles) map.set(key(r), r);
-  const merged = Array.from(map.values());
-  const csvMerged = buildCsvFromArticles(merged);
-
-  const contentsUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
-  let body = { message: sha ? "maj UI (merge update)" : "maj UI (create)", content: toBase64(csvMerged), branch: GITHUB_BRANCH };
-  if (sha) body.sha = sha;
-
-  let put = await fetch(contentsUrl, { method:"PUT", headers: headersAuth(), body: JSON.stringify(body) });
-
-  if (put.status===409){
-    // rebase et retente 1x
-    ({ sha, rows: remoteRows } = await getLatestShaAndRows());
-    const map2 = new Map(remoteRows.map(r => [key(r), r]));
-    for (const r of articles) map2.set(key(r), r);
-    const merged2 = Array.from(map2.values());
-    const csv2 = buildCsvFromArticles(merged2);
-    const body2 = { message: "maj UI (rebase merge)", content: toBase64(csv2), branch: GITHUB_BRANCH, sha };
-    put = await fetch(contentsUrl, { method:"PUT", headers: headersAuth(), body: JSON.stringify(body2) });
-  }
-
-  if (!put.ok){
-    setStatus("");
-    const txt = await put.text();
-    alert(`Échec du commit : ${put.status}\n${txt}`);
-    return;
-  }
-
-  setStatus("Enregistré. Mise à jour immédiate…");
-  // 1) MAJ immédiate via API (instantané)
-  try { await loadCsvFromApi(); setStatus("À jour. Sync CDN dans 5 s…"); } catch {}
-  // 2) Sync CDN après propagation
-  setTimeout(async ()=>{ try { await reloadCsv(true); setStatus(""); } catch {} }, 5000);
-}
-
-// ===== Add depuis le formulaire =====
+/* ========= FORMULAIRE (AJOUT) ========= */
 function addFromForm() {
-  const $ = name => document.querySelector(`#form-container [name="${name}"]`);
+  const $ = n => document.querySelector(`#form-container [name="${n}"]`);
   const row = {
     "Année":   norm($("Année")?.value),
     "Numéro":  norm($("Numéro")?.value),
     "Titre":   norm($("Titre")?.value),
     "Page(s)": norm($("Page(s)")?.value),
-    "Auteur(s)": norm($("Auteur(s)")?.value),
-    "Ville(s)":  norm($("Ville(s)")?.value),
-    "Theme(s)":  norm($("Theme(s)")?.value),
+    "Auteur(s)": splitMulti($("Auteur(s)")?.value).join("; "),
+    "Ville(s)":  splitMulti($("Ville(s)")?.value).join("; "),
+    "Theme(s)":  splitMulti($("Theme(s)")?.value).join("; "),
     "Epoque":    norm($("Epoque")?.value),
   };
+  // évite doublon strict (Année+Numéro+Titre)
+  if (articles.some(r => rowKey(r) === rowKey(row))) {
+    alert("Doublon détecté : même Année + Numéro + Titre.");
+    return;
+  }
   articles.push(row);
+  pendingAdds.push(row);
+  currentPage = 1;
   render();
 }
 
-// ===== Wire UI =====
+/* ========= CONSTRUCTION CSV ========= */
+function buildCsvFromArticles(rows) {
+  const headers = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
+  const lines = [headers.join(",")].concat(
+    rows.map(r =>
+      headers.map(h => (r[h] ?? "").toString().replaceAll('"','""'))
+             .map(v => /[",\n]/.test(v) ? `"${v}"` : v)
+             .join(",")
+    )
+  );
+  return lines.join("\n");
+}
+
+/* ========= GITHUB SAVE (robuste + retry 409) ========= */
+function toBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
+
+async function githubLoginInline() {
+  const t = prompt("Collez votre token GitHub (scope public_repo) :");
+  if (!t) return;
+  setToken(t);
+  // test léger (404 toléré si le fichier n'existe pas encore)
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  const r = await fetch(url, { headers:{ Authorization:`token ${GHTOKEN}` } });
+  if (!r.ok && r.status!==404){ alert(`Token/accès KO (HTTP ${r.status})`); setToken(null); return; }
+  const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)";
+  alert("Connecté à GitHub ✅");
+}
+
+async function saveToGitHubMerged() {
+  if (!GHTOKEN) { alert("Connectez-vous d’abord (🔐)."); return; }
+  const headers = {
+    Authorization: `token ${GHTOKEN}`,
+    "Content-Type": "application/json",
+    "Accept": "application/vnd.github+json",
+    "Cache-Control": "no-cache"
+  };
+  const contentsUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+
+  // 0) Branche existante ?
+  const br = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches/${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+  if (!br.ok) { alert("Branche introuvable (ajoute un 1er commit sur 'main')."); return; }
+
+  const getLatest = async () => {
+    const r = await fetch(contentsUrl + `?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+    if (r.status === 404) return { sha: null, rows: [] };
+    if (!r.ok) throw new Error(`GET contents ${r.status}: ${await r.text()}`);
+    const j = await r.json();
+    const csv = decodeURIComponent(escape(atob(j.content)));
+    return { sha: j.sha, rows: parseCsvFlexible(csv) };
+  };
+
+  // 1) repartir du dernier distant
+  let { sha, rows: remoteRows } = await getLatest();
+
+  // 2) préparer ce qu’on écrit
+  let toWriteRows;
+  if (APPEND_ONLY) {
+    const remoteKeys = new Set(remoteRows.map(r => rowKey(r)));
+    const newAdds = (pendingAdds||[]).filter(r => !remoteKeys.has(rowKey(r)));
+    if (!newAdds.length && (!articles || !articles.length)) {
+      alert("Rien de nouveau à enregistrer.");
+      return;
+    }
+    toWriteRows = remoteRows.concat(newAdds.length ? newAdds : []);
+  } else {
+    // merge complet (si tu veux basculer un jour)
+    const key = r => [r["Titre"], r["Numéro"], r["Année"]].map(v=>v||"").join("¦");
+    const map = new Map(remoteRows.map(r => [key(r), r]));
+    for (const r of articles) map.set(key(r), r);
+    toWriteRows = Array.from(map.values());
+  }
+
+  const csvMerged = buildCsvFromArticles(toWriteRows);
+
+  // 3) PUT + retry 409 (3 fois max)
+  let attempts = 0, put;
+  while (attempts < 3) {
+    const body = { message: sha ? "maj UI (update)" : "maj UI (create)", content: toBase64(csvMerged), branch: GITHUB_BRANCH, ...(sha ? { sha } : {}) };
+    put = await fetch(contentsUrl, { method: "PUT", headers, body: JSON.stringify(body) });
+    if (put.status !== 409) break;
+    // relire le dernier sha et retenter
+    const latest = await getLatest();
+    sha = latest.sha;
+    attempts++;
+  }
+
+  if (!put.ok) {
+    const txt = await put.text();
+    alert(`Échec du commit : ${put.status}\n${txt}`);
+    return;
+  }
+
+  // 4) succès → affichage immédiat (API) puis sync raw (5s)
+  try { await loadCsvFromApi(); } catch {}
+  setTimeout(() => { reloadCsv(true).catch(()=>{}); }, 5000);
+
+  pendingAdds = [];
+  alert("Modifications enregistrées ✅");
+}
+
+/* ========= EVENTS ========= */
 function wireUI(){
   const an = document.getElementById("filter-annee");
   const nu = document.getElementById("filter-numero");
@@ -347,14 +340,19 @@ function wireUI(){
   document.getElementById("login-btn")?.addEventListener("click", githubLoginInline);
   document.getElementById("logout-btn")?.addEventListener("click", ()=>{ setToken(null); const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub"; alert("Token oublié (session nettoyée)."); });
   document.getElementById("save-btn")?.addEventListener("click", saveToGitHubMerged);
-  document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{ addFromForm(); await saveToGitHubMerged(); });
+
+  // bouton du formulaire (en haut)
+  document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{
+    addFromForm();              // ajoute à articles + pendingAdds
+    await saveToGitHubMerged(); // enregistre + vue instantanée
+  });
 }
 
-// ===== Init =====
+/* ========= INIT ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
   if (GHTOKEN){ const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)"; }
   try {
-    await reloadCsv(true); // affichage initial depuis raw
+    await reloadCsv(true);
     wireUI();
   } catch (e) {
     console.error(e);
@@ -362,6 +360,3 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if (c) c.innerHTML = `<p style="color:#b00">Erreur de chargement : ${e}</p>`;
   }
 });
-
-// Expose pour tri via onclick dans header
-window.sortBy = sortBy;
