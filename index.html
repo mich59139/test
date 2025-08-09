@@ -24,19 +24,19 @@
     <button id="init-btn"   onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
   </div>
 
-  <div class="form-add">
-    <h2>Ajouter un article</h2>
-    <input type="text" id="add-annee"   placeholder="Année">
-    <input type="text" id="add-numero"  placeholder="Numéro">
-    <input type="text" id="add-titre"   placeholder="Titre">
-    <input type="text" id="add-pages"   placeholder="Page(s)">
-    <input type="text" id="add-auteurs" placeholder="Auteur(s)">
-    <input type="text" id="add-villes"  placeholder="Ville(s)">
-    <input type="text" id="add-themes"  placeholder="Thème(s)">
-    <input type="text" id="add-epoque"  placeholder="Période">
-    <button id="add-btn" onclick="window._add?.()">Ajouter et enregistrer</button>
-  </div>
-
+  <!-- Ne PAS mettre <form> pour éviter le submit navigateur -->
+<div class="form-add" id="add-box">
+  <h2>Ajouter un article</h2>
+  <input type="text" id="add-annee"   placeholder="Année">
+  <input type="text" id="add-numero"  placeholder="Numéro">
+  <input type="text" id="add-titre"   placeholder="Titre" required>
+  <input type="text" id="add-pages"   placeholder="Page(s)">
+  <input type="text" id="add-auteurs" placeholder="Auteur(s)">
+  <input type="text" id="add-villes"  placeholder="Ville(s)">
+  <input type="text" id="add-themes"  placeholder="Thème(s)">
+  <input type="text" id="add-epoque"  placeholder="Période">
+  <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter et enregistrer</button>
+</div>
   <div class="filters">
     <label>Afficher :
       <select id="limit">
