@@ -1,0 +1,14 @@
+
+body { font-family: system-ui, Arial, sans-serif; margin: 16px; }
+#toolbar, #authbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+input, select, button { padding:6px 10px; font-size:14px; }
+table { width:100%; border-collapse: collapse; margin-top:8px; }
+th, td { border:1px solid #ddd; padding:6px 8px; text-align:left; }
+th { cursor:pointer; user-select:none; }
+th .arrow { opacity:.6; margin-left:4px; }
+.drawer { position:fixed; top:0; right:-420px; width:420px; height:100%; background:#fff; border-left:1px solid #ddd;
+          box-shadow:-4px 0 10px rgba(0,0,0,.08); transition:right .25s ease-in-out; z-index:1000; overflow-y:auto; }
+.drawer.open { right:0; }
+.drawer-content { padding:16px; }
+#save-status { min-width: 200px; }
+.badge { background:#eee; padding:2px 6px; border-radius:12px; font-size:12px; }
