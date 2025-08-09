@@ -37,7 +37,6 @@
     <datalist id="dl-numero"></datalist>
 
     <input type="text" id="add-titre"   placeholder="Titre" required>
-
     <input type="text" id="add-pages"   placeholder="Page(s)">
 
     <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
@@ -97,27 +96,6 @@
       <button id="prev">◀ Précédent</button>
       <span id="pageinfo"></span>
       <button id="next">Suivant ▶</button>
-    </div>
-  </div>
-
-  <!-- Drawer édition -->
-  <div id="edit-drawer" class="drawer hidden">
-    <div class="drawer-panel">
-      <h3>Modifier l’article</h3>
-      <div class="drawer-body">
-        <input type="text" id="edit-annee"   placeholder="Année"   list="dl-annee">
-        <input type="text" id="edit-numero"  placeholder="Numéro"  list="dl-numero">
-        <input type="text" id="edit-titre"   placeholder="Titre">
-        <input type="text" id="edit-pages"   placeholder="Page(s)">
-        <input type="text" id="edit-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
-        <input type="text" id="edit-villes"  placeholder="Ville(s)"  list="dl-villes">
-        <input type="text" id="edit-themes"  placeholder="Thème(s)"  list="dl-themes">
-        <input type="text" id="edit-epoque"  placeholder="Période"   list="dl-epoque">
-      </div>
-      <div class="drawer-actions">
-        <button onclick="window._editCancel?.()">Annuler</button>
-        <button class="primary" onclick="window._editSave?.()">💾 Enregistrer</button>
-      </div>
     </div>
   </div>
 
