@@ -4,76 +4,89 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Catalogue des Articles</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 1em; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1em; }
-    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-    th { background: #f4f4f4; }
-    .badges { margin-bottom: 1em; }
-    .badges span { margin-right: 1em; }
-    .form-add input { margin: 0.2em; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h1>Catalogue des Articles</h1>
 
-<h1>Catalogue des Articles</h1>
+  <!-- Badges d'état -->
+  <div class="badges">
+    Auth: <span id="status-auth">❌</span>
+    Repo: <span id="status-repo">❌</span>
+    Branche: <span id="status-branch">❌</span>
+    Fichier: <span id="status-file">❌</span>
+    <span id="gh-msg" class="notice"></span>
+  </div>
 
-<div class="badges">
-  Auth: <span id="status-auth">❌</span>
-  Repo: <span id="status-repo">❌</span>
-  Branche: <span id="status-branch">❌</span>
-  Fichier: <span id="status-file">❌</span>
-</div>
+  <!-- Boutons -->
+  <div class="controls">
+    <button id="login-btn" onclick="window._login?.()">🔐 Se connecter GitHub</button>
+    <button id="logout-btn">🚪 Déconnexion</button>
+    <button id="save-btn">💾 Enregistrer dans GitHub</button>
+    <button id="init-btn">🧩 Créer data/articles.csv (si manquant)</button>
+  </div>
 
-<button id="login-btn">🔐 Se connecter GitHub</button>
-<button id="logout-btn" onclick="localStorage.removeItem('ghtoken'); location.reload();">🚪 Déconnexion</button>
-<button id="save-btn">💾 Enregistrer dans GitHub</button>
-<button id="init-btn">🧩 Créer data/articles.csv (si manquant)</button>
+  <!-- Formulaire d'ajout -->
+  <div class="form-add">
+    <h2>Ajouter un article</h2>
+    <input type="text" id="add-annee"   placeholder="Année">
+    <input type="text" id="add-numero"  placeholder="Numéro">
+    <input type="text" id="add-titre"   placeholder="Titre">
+    <input type="text" id="add-pages"   placeholder="Page(s)">
+    <input type="text" id="add-auteurs" placeholder="Auteur(s)">
+    <input type="text" id="add-villes"  placeholder="Ville(s)">
+    <input type="text" id="add-themes"  placeholder="Thème(s)">
+    <input type="text" id="add-epoque"  placeholder="Période">
+    <button id="add-btn">Ajouter et enregistrer</button>
+  </div>
 
-<h2>Ajouter un article</h2>
-<div class="form-add">
-  <input type="text" id="add-annee" placeholder="Année">
-  <input type="text" id="add-numero" placeholder="Numéro">
-  <input type="text" id="add-titre" placeholder="Titre">
-  <input type="text" id="add-pages" placeholder="Page(s)">
-  <input type="text" id="add-auteurs" placeholder="Auteur(s)">
-  <input type="text" id="add-villes" placeholder="Ville(s)">
-  <input type="text" id="add-themes" placeholder="Thème(s)">
-  <input type="text" id="add-epoque" placeholder="Période">
-  <button id="add-btn">Ajouter et enregistrer</button>
-</div>
+  <!-- Filtres -->
+  <div class="filters">
+    <label>Afficher :
+      <select id="limit">
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="all">Tout</option>
+      </select>
+    </label>
+    <label>Année :
+      <select id="filter-annee"></select>
+    </label>
+    <label>Numéro :
+      <select id="filter-numero"></select>
+    </label>
+    <label>Recherche :
+      <input type="text" id="search" placeholder="Chercher dans tous les champs">
+    </label>
+  </div>
 
-<h2>Filtres</h2>
-<label>Afficher :</label>
-<select id="filter-annee"></select>
-<label>Année :</label>
-<select id="filter-numero"></select>
-<label>Recherche :</label>
-<input type="text" id="search">
+  <!-- Tableau -->
+  <div id="articles">
+    <table>
+      <thead>
+        <tr>
+          <th data-col="Année">Année</th>
+          <th data-col="Numéro">Numéro</th>
+          <th data-col="Titre">Titre</th>
+          <th data-col="Page(s)">Page(s)</th>
+          <th data-col="Auteur(s)">Auteur(s)</th>
+          <th data-col="Ville(s)">Ville(s)</th>
+          <th data-col="Theme(s)">Thème(s)</th>
+          <th data-col="Epoque">Période</th>
+        </tr>
+      </thead>
+      <tbody id="articles-body"></tbody>
+    </table>
+    <div class="pager">
+      <button id="prev">◀ Précédent</button>
+      <span id="pageinfo"></span>
+      <button id="next">Suivant ▶</button>
+    </div>
+  </div>
 
-<div id="articles">
-  <table>
-    <thead>
-      <tr>
-        <th>Année</th>
-        <th>Numéro</th>
-        <th>Titre</th>
-        <th>Page(s)</th>
-        <th>Auteur(s)</th>
-        <th>Ville(s)</th>
-        <th>Theme(s)</th>
-        <th>Période</th>
-      </tr>
-    </thead>
-    <tbody id="articles-body"></tbody>
-  </table>
-</div>
-
-<!-- PapaParse pour parser CSV -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-<!-- Ton script principal -->
-<script src="app.js"></script>
-
+  <!-- Librairie CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- App -->
+  <script src="app.js"></script>
 </body>
 </html>
