@@ -1,75 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Catalogue des Articles</title>
-  <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <meta charset="UTF-8">
+    <title>Catalogue des Articles</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Catalogue des Articles</h1>
-
-  <div id="toolbar">
-    <label>Année:
-      <select id="filter-annee"><option value="">(toutes)</option></select>
-    </label>
-    <label>Numéro:
-      <select id="filter-numero"><option value="">(tous)</option></select>
-    </label>
-    <label>Afficher:
-      <select id="limit">
-        <option value="50" selected>50</option>
-        <option value="100">100</option>
-        <option value="all">Tous</option>
-      </select>
-    </label>
-    <input type="text" id="search" placeholder="Rechercher…"/>
-    <button id="export-btn">⤓ Exporter la vue (.csv)</button>
-    <span id="count"></span>
-  </div>
-
-  <div id="actions">
+    <h1>Catalogue des Articles</h1>
     <button id="login-btn">🔐 Se connecter GitHub</button>
     <button id="logout-btn">🚪 Déconnexion</button>
     <button id="save-btn">💾 Enregistrer dans GitHub</button>
-    <button id="toggle-add">➕ Ajouter</button>
-  </div>
-
-  <!-- Drawer ajout -->
-  <div id="drawer" class="drawer">
-    <div class="drawer-content">
-      <button id="close-drawer" title="Fermer">✖</button>
-      <h2>Nouvel article</h2>
-      <form id="form-article">
-        <input name="Année" placeholder="Année" list="dl-annee" required/>
-        <datalist id="dl-annee"></datalist>
-        <input name="Numéro" placeholder="Numéro" list="dl-numero" required/>
-        <datalist id="dl-numero"></datalist>
-        <input name="Titre" placeholder="Titre" required/>
-        <input name="Page(s)" placeholder="Page(s)"/>
-        <input name="Auteur(s)" placeholder="Auteur(s)" list="dl-auteurs"/>
-        <datalist id="dl-auteurs"></datalist>
-        <input name="Ville(s)" placeholder="Ville(s)" list="dl-villes"/>
-        <datalist id="dl-villes"></datalist>
-        <input name="Theme(s)" placeholder="Thème(s)" list="dl-themes"/>
-        <datalist id="dl-themes"></datalist>
-        <input name="Epoque" placeholder="Période (Epoque)" list="dl-epoques"/>
-        <datalist id="dl-epoques"></datalist>
-        <button type="submit">Ajouter au lot</button>
-      </form>
-      <div class="batch-actions">
-        <button id="download-batch">Télécharger le lot (.csv)</button>
-        <button id="copy-batch">Copier le lot</button>
-        <button id="reset-batch">Vider le lot</button>
-        <span id="batch-count">0 en attente</span>
-      </div>
-      <pre id="batch-preview"></pre>
-    </div>
-  </div>
-
-  <div id="articles"></div>
-
-  <script src="app.js" defer></script>
+    <div id="table-container"></div>
+    <script src="app.js"></script>
 </body>
 </html>
