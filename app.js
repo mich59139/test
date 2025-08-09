@@ -3,7 +3,6 @@ const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
-
 /* ========= DEBUG HEADER ========= */
 document.addEventListener("DOMContentLoaded", () => {
   const dbg = document.createElement("div");
