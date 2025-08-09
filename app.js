@@ -3,8 +3,7 @@ const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
-const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
-
+const RAW_URL = "https://raw.githubusercontent.com/mich59139/test/main/data/articles.csv";
 let GHTOKEN = localStorage.getItem("ghtoken") || null;
 let ARTICLES = [];
 let currentPage = 1;
@@ -67,33 +66,34 @@ function resetFiltersUI() {
 
 /* ========= LECTURE PUBLIQUE + BADGES ========= */
 async function probePublicAndLoad() {
-  const repoUrl   = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`;
-  const branchUrl = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
-  const fileUrl   = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
   try {
-    const [rRepo, rBr, rFile] = await Promise.all([fetch(repoUrl), fetch(branchUrl), fetch(fileUrl)]);
-    setBadge("status-repo", rRepo.ok);
-    setBadge("status-branch", rBr.ok);
-    setBadge("status-file", rFile.ok);
-    if (rRepo.ok && rBr.ok && rFile.ok) {
-      const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache:"no-store" });
-      if (r.ok) {
-        const text = await r.text();
-        ARTICLES = parseCsvFlexible(text);
-        populateFilters();
-        resetFiltersUI();
-        render();
-      } else {
-        document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
-      }
-    } else {
-      document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Aucun article trouvé.</td></tr>`;
+    // Lire UNIQUEMENT via RAW (pas d'API → pas de 403 CORS/rate limit)
+    const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) {
+      document.getElementById("articles-body").innerHTML =
+        `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
+      // Badges: on ne les met pas à jour via l'API pour éviter le 403.
+      return;
     }
+
+    const text = await r.text();
+    ARTICLES = parseCsvFlexible(text);
+
+    // UI
+    populateFilters();
+    resetFiltersUI();
+    render();
+
+    // On met les badges au vert si la lecture RAW a réussi
+    setBadge("status-repo",   true);
+    setBadge("status-branch", true);
+    setBadge("status-file",   true);
   } catch (e) {
     console.error(e);
+    document.getElementById("articles-body").innerHTML =
+      `<tr><td colspan="8">Impossible de charger les données.</td></tr>`;
   }
 }
-
 /* ========= UI ========= */
 function populateFilters(){
   const an=document.getElementById("filter-annee");
