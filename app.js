@@ -1,8 +1,8 @@
 /* ========= CONFIG ========= */
 const GITHUB_OWNER  = "mich59139";
-const GITHUB_REPO   = "nouveau";
-const GITHUB_BRANCH = "main";
-const CSV_PATH      = "data/articles.csv";
+const GITHUB_REPO   = "nouveau";           // ← dépôt cible
+const GITHUB_BRANCH = "main";              // ← branche
+const CSV_PATH      = "data/articles.csv"; // ← chemin du CSV
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
 /* ========= TOKEN EN SESSION ========= */
@@ -10,9 +10,9 @@ let GHTOKEN = sessionStorage.getItem("ghtoken") || null;
 const setToken = t => { GHTOKEN = t?.trim() || null; GHTOKEN ? sessionStorage.setItem("ghtoken", GHTOKEN) : sessionStorage.removeItem("ghtoken"); };
 
 /* ========= ETAT ========= */
-let articles = [];
-let pendingAdds = [];
-const APPEND_ONLY = true;
+let articles = [];               // objets normalisés
+let pendingAdds = [];            // lignes ajoutées via le formulaire (append-only)
+const APPEND_ONLY = true;        // on ajoute sans écraser
 let currentPage = 1;
 let rowsPerPage = 50;
 let currentSort = { col: null, dir: "asc" };
@@ -51,10 +51,17 @@ function parseCsvFlexible(text) {
   if ((meta.fields||[]).length<=1 && text.includes(";")) ({ rows, meta } = parseCsv(";", text));
   return rows;
 }
+
+/* multi-valeurs (auteurs/thèmes/villes) */
 function splitMulti(value) {
   const raw = norm(value);
   if (!raw) return [];
-  return raw.split(/[;,/|·•]/).map(v => v.replace(/^\W+|\W+$/g,"")).map(v => v.replace(/\s*-\s*/g,"-")).map(v => v.replace(/\s{2,}/g," ").trim()).filter(v => v && v !== "i" && v.length >= 2);
+  return raw
+    .split(/[;,/|·•]/)
+    .map(v => v.replace(/^\W+|\W+$/g,""))
+    .map(v => v.replace(/\s*-\s*/g,"-"))
+    .map(v => v.replace(/\s{2,}/g," ").trim())
+    .filter(v => v && v !== "i" && v.length >= 2);
 }
 function uniquePretty(list) {
   const map = new Map();
@@ -75,7 +82,7 @@ function setBadge(id, ok){
   if (!el) return;
   el.classList.remove("ok","err");
   el.classList.add(ok ? "ok" : "err");
-  const base = el.textContent.split(" ")[0];
+  const base = el.textContent.split(" ")[0]; // "Auth", "Repo", etc.
   el.textContent = base + " " + (ok ? "✅" : "❌");
 }
 function setStatusMsg(html){
@@ -83,28 +90,52 @@ function setStatusMsg(html){
   if (m) m.innerHTML = html;
 }
 async function verifyGithubTarget() {
-  if (!GHTOKEN) { setStatusMsg("Non connecté."); return; }
+  if (!GHTOKEN) { setStatusMsg("Non connecté."); setBadge("status-auth", false); return; }
+  setBadge("status-auth", true);
   const H = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
   const repoUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`;
   const brUrl   = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
   const fileUrl = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  let msg = [];
 
+  // Repo
   const r1 = await fetch(repoUrl, { headers: H });
   setBadge("status-repo", r1.ok);
-  if (!r1.ok) { setStatusMsg(`Repo introuvable : <code>${GITHUB_OWNER}/${GITHUB_REPO}</code>.`); return; }
+  if (!r1.ok) {
+    setStatusMsg(`Repo introuvable : <code>${GITHUB_OWNER}/${GITHUB_REPO}</code>. Vérifie OWNER/REPO dans <code>app.js</code>.`);
+    return;
+  } else {
+    const j1 = await r1.json();
+    msg.push(`Repo : <code>${j1.full_name}</code>`);
+  }
 
+  // Branch
   const r2 = await fetch(brUrl, { headers: H });
   setBadge("status-branch", r2.ok);
-  if (!r2.ok) { setStatusMsg(`Branche introuvable : <code>${GITHUB_BRANCH}</code>. Crée un premier commit (README).`); return; }
+  if (!r2.ok) {
+    setStatusMsg(`Branche introuvable : <code>${GITHUB_BRANCH}</code>. Crée un premier commit (README) sur cette branche, ou mets la valeur correcte dans <code>app.js</code>.`);
+    return;
+  } else {
+    msg.push(`Branche : <code>${GITHUB_BRANCH}</code> ok`);
+  }
 
+  // File (404 accepté = à créer)
   const r3 = await fetch(fileUrl, { headers: H });
   setBadge("status-file", r3.ok || r3.status===404);
   if (r3.status === 404) {
-    setStatusMsg(`Fichier manquant : <code>${CSV_PATH}</code>. Crée-le dans le dépôt (au moins l’entête).`);
+    setStatusMsg(
+      `Fichier manquant : <code>${CSV_PATH}</code>.<br>
+       ➜ Dans GitHub, crée <strong>${CSV_PATH}</strong> (au moins l’entête) sur la branche <code>${GITHUB_BRANCH}</code>.<br>
+       Ensuite, le bouton 💾 pourra le créer/mettre à jour.`
+    );
     return;
   }
-  if (!r3.ok) { setStatusMsg(`Erreur d’accès fichier (${r3.status}).`); return; }
-  setStatusMsg(`Cible OK : <code>${GITHUB_OWNER}/${GITHUB_REPO}@${GITHUB_BRANCH} → ${CSV_PATH}</code>`);
+  if (!r3.ok) {
+    setStatusMsg(`Erreur d’accès fichier (${r3.status}). Chemin attendu : <code>${CSV_PATH}</code>.`);
+    return;
+  }
+  msg.push(`Fichier : <code>${CSV_PATH}</code> ok`);
+  setStatusMsg(msg.join(" · "));
 }
 
 /* ========= CHARGEMENT ========= */
@@ -126,6 +157,8 @@ async function reloadCsv(reset=false) {
   populateDatalists();
   render();
 }
+
+/* Chargement immédiat via API (après commit) */
 async function loadCsvFromApi() {
   if (!GHTOKEN) return;
   const headers = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
@@ -146,6 +179,18 @@ function populateFilters() {
   if (!an || !nu) return;
   an.innerHTML = `<option value="">(toutes)</option>` + uniqueSorted(articles.map(a=>a["Année"])).map(v=>`<option>${v}</option>`).join("");
   nu.innerHTML = `<option value="">(tous)</option>`   + uniqueSorted(articles.map(a=>a["Numéro"])).map(v=>`<option>${v}</option>`).join("");
+}
+function uniquePretty(list) {
+  const map = new Map();
+  for (const item of list) {
+    const pretty = norm(item);
+    if (!pretty) continue;
+    const key = canonKey(pretty);
+    if (!key || key === "i") continue;
+    if (/^\d+$/.test(pretty)) continue;
+    if (!map.has(key)) map.set(key, pretty);
+  }
+  return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 function populateDatalists() {
   const fill = (id, items) => {
@@ -264,13 +309,20 @@ function buildCsvFromArticles(rows) {
 
 /* ========= GITHUB SAVE ========= */
 function toBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
+
 async function githubLoginInline() {
   const t = prompt("Collez votre token GitHub (scope public_repo) :");
   if (!t) return;
   setToken(t);
+  // test léger (404 toléré si le fichier n'existe pas encore)
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  const r = await fetch(url, { headers:{ Authorization:`token ${GHTOKEN}` } });
+  if (!r.ok && r.status!==404){ alert(`Token/accès KO (HTTP ${r.status})`); setToken(null); setBadge("status-auth", false); return; }
+  const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)";
   setBadge("status-auth", true);
   alert("Connecté à GitHub ✅");
 }
+
 async function saveToGitHubMerged() {
   if (!GHTOKEN) { alert("Connectez-vous d’abord (🔐)."); return; }
   const headers = {
@@ -281,6 +333,7 @@ async function saveToGitHubMerged() {
   };
   const contentsUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
 
+  // 0) Branche existante ?
   const br = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches/${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
   setBadge("status-branch", br.ok);
   if (!br.ok) { alert("Branche introuvable (ajoute un 1er commit sur 'main')."); return; }
@@ -295,8 +348,10 @@ async function saveToGitHubMerged() {
     return { sha: j.sha, rows: parseCsvFlexible(csv) };
   };
 
+  // 1) repartir du dernier distant
   let { sha, rows: remoteRows } = await getLatest();
 
+  // 2) préparer ce qu’on écrit
   let toWriteRows;
   if (APPEND_ONLY) {
     const remoteKeys = new Set(remoteRows.map(r => rowKey(r)));
@@ -312,29 +367,46 @@ async function saveToGitHubMerged() {
     for (const r of articles) map.set(key(r), r);
     toWriteRows = Array.from(map.values());
   }
+
   const csvMerged = buildCsvFromArticles(toWriteRows);
 
+  // 3) PUT + retry 409 (3 fois max)
   let attempts = 0, put;
   while (attempts < 3) {
     const body = { message: sha ? "maj UI (update)" : "maj UI (create)", content: toBase64(csvMerged), branch: GITHUB_BRANCH, ...(sha ? { sha } : {}) };
     put = await fetch(contentsUrl, { method: "PUT", headers, body: JSON.stringify(body) });
     if (put.status !== 409) break;
+    // relire le dernier sha et retenter
     const latest = await getLatest();
     sha = latest.sha;
     attempts++;
   }
+
   if (!put.ok) {
     const txt = await put.text();
     alert(`Échec du commit : ${put.status}\n${txt}`);
     return;
   }
 
+  // 4) succès → affichage immédiat (API) puis sync raw (5s)
   try { await loadCsvFromApi(); } catch {}
   setTimeout(() => { reloadCsv(true).catch(()=>{}); }, 5000);
 
   pendingAdds = [];
   alert("Modifications enregistrées ✅");
 }
+
+/* ========= BOUTON LOGIN : FALLBACK GLOBAL ========= */
+// Appelée par onclick HTML si le listener JS ne s’est pas branché
+window._login = async () => {
+  try {
+    await githubLoginInline();
+    await verifyGithubTarget();
+  } catch (e) {
+    console.error(e);
+    alert("Échec de connexion GitHub : " + e);
+  }
+};
 
 /* ========= EVENTS ========= */
 function wireUI(){
@@ -348,33 +420,40 @@ function wireUI(){
   if (lim) lim.addEventListener("change", ()=>{ currentPage=1; render(); });
   if (sch) sch.addEventListener("input", ()=>{ currentPage=1; render(); });
 
-  document.getElementById("login-btn")?.addEventListener("click", async () => {
-    await githubLoginInline();
-    await verifyGithubTarget();
-    setBadge("status-auth", !!GHTOKEN);
-  });
+  // Listener JS classique (si le JS est chargé)
+  const btnLogin = document.getElementById("login-btn");
+  btnLogin?.addEventListener("click", window._login);
+
   document.getElementById("logout-btn")?.addEventListener("click", ()=>{
-    setToken(null); setBadge("status-auth", false);
+    setToken(null);
+    setBadge("status-auth", false);
     alert("Token oublié (session nettoyée).");
     const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub";
   });
+
   document.getElementById("save-btn")?.addEventListener("click", saveToGitHubMerged);
 
+  // bouton du formulaire (en haut)
   document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{
-    addFromForm();
-    await saveToGitHubMerged();
+    addFromForm();              // ajoute à articles + pendingAdds
+    await saveToGitHubMerged(); // enregistre + vue immédiate
   });
+
+  // Indication visuelle si token déjà là
+  if (GHTOKEN) {
+    const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)";
+    setBadge("status-auth", true);
+  }
 }
 
 /* ========= INIT ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
-  if (GHTOKEN){ const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)"; setBadge("status-auth", true); }
   try {
-    await reloadCsv(true);
-    wireUI();
+    await reloadCsv(true);      // essaie de charger (404 si fichier absent)
   } catch (e) {
     console.error(e);
     const c=document.getElementById("articles");
-    if (c) c.innerHTML = `<p class="error">Erreur de chargement : ${e}</p>`;
+    if (c) c.innerHTML = `<p style="color:#b00">Erreur de chargement : ${e}</p>`;
   }
+  wireUI();
 });
