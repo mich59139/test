@@ -3,7 +3,7 @@ const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
-// Lecture via RAW (pas d’API → pas de 403)
+// Lecture via RAW (fiable)
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
 let GHTOKEN  = localStorage.getItem("ghtoken") || null;
@@ -20,6 +20,7 @@ const encodeB64 = str => btoa(unescape(encodeURIComponent(str)));
 const setBadge = (id, ok, extra="") => { const el=document.getElementById(id); if(!el)return; el.textContent = ok?`✅${extra}`:`❌`; el.style.color = ok? "#16a34a":"#dc2626"; };
 const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr"));
 const sleep = ms => new Promise(res => setTimeout(res, ms));
+const showLoading = (on=true) => { const el=document.getElementById("loading"); if (el) el.classList.toggle("hidden", !on); };
 
 /* ========= PARSEUR ROBUSTE ========= */
 function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
@@ -38,7 +39,7 @@ function normalizeHeader(h) {
 function parseCsvFlexible(text) {
   if (!text) return [];
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
-  if (!text.endsWith("\n")) text += "\n";                  // ne pas perdre la dernière ligne
+  if (!text.endsWith("\n")) text += "\n";                  // sécurise la dernière ligne
 
   const res = Papa.parse(text, {
     header: true,
@@ -82,14 +83,14 @@ async function probePublicAndLoad() {
   try {
     const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache: "no-store" });
     if (!r.ok) {
-      document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
+      document.getElementById("articles-body").innerHTML = `<tr><td colspan="9">Erreur RAW: ${r.status}</td></tr>`;
       setBadge("status-repo", false); setBadge("status-branch", false); setBadge("status-file", false);
       return;
     }
     const text = await r.text();
     ARTICLES = parseCsvFlexible(text);
     populateFilters();
-    populateDatalists();  // suggestions pour la saisie
+    populateDatalists();
     resetFiltersUI();
     render();
     setBadge("status-repo", true);
@@ -97,7 +98,7 @@ async function probePublicAndLoad() {
     setBadge("status-file", true, ` (${ARTICLES.length})`);
   } catch (e) {
     console.error(e);
-    document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Impossible de charger les données.</td></tr>`;
+    document.getElementById("articles-body").innerHTML = `<tr><td colspan="9">Impossible de charger les données.</td></tr>`;
     setBadge("status-repo", false); setBadge("status-branch", false); setBadge("status-file", false);
   }
 }
@@ -110,32 +111,37 @@ function populateFilters(){
   if (an) an.innerHTML = `<option value="">(toutes)</option>` + uniqSorted(ARTICLES.map(r=>r["Année"])).map(v=>`<option>${v}</option>`).join("");
   if (nu) nu.innerHTML = `<option value="">(tous)</option>`   + uniqSorted(ARTICLES.map(r=>r["Numéro"])).map(v=>`<option>${v}</option>`).join("");
 }
+
+function splitMulti(v){ return (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean); }
 function populateDatalists(){
-  const fill = (id, arr) => {
+  const fill = (id, values) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const opts = uniqSorted(arr).slice(0,1000).map(v=>`<option value="${String(v).replaceAll('"','&quot;')}">`).join("");
+    const opts = uniqSorted(values).slice(0,1000).map(v=>`<option value="${String(v).replaceAll('"','&quot;')}">`).join("");
     el.innerHTML = opts;
   };
   fill("dl-annee",   ARTICLES.map(r=>r["Année"]));
   fill("dl-numero",  ARTICLES.map(r=>r["Numéro"]));
-  // éclater multi-valeurs par virgule / point-virgule
-  const splitMulti = v => (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean);
   fill("dl-auteurs", ARTICLES.flatMap(r=>splitMulti(r["Auteur(s)"])));
   fill("dl-villes",  ARTICLES.flatMap(r=>splitMulti(r["Ville(s)"])));
   fill("dl-themes",  ARTICLES.flatMap(r=>splitMulti(r["Theme(s)"])));
   fill("dl-epoque",  ARTICLES.map(r=>r["Epoque"]));
 }
+
 function applyFiltersSortPaginate(){
   const term=(document.getElementById("search")?.value||"").toLowerCase();
   const an=document.getElementById("filter-annee")?.value||"";
   const nu=document.getElementById("filter-numero")?.value||"";
-  let data=ARTICLES.filter(r=>{
-    const okS=!term||Object.values(r).some(v=> (v||"").toString().toLowerCase().includes(term));
-    const okA=!an||r["Année"]===an;
-    const okN=!nu||r["Numéro"]===nu;
-    return okS&&okA&&okN;
-  });
+
+  // Attacher l’index original à chaque ligne
+  let data = ARTICLES.map((r,i)=>({ ...r, __idx:i }))
+    .filter(r=>{
+      const okS=!term||Object.values(r).some(v=> (v||"").toString().toLowerCase().includes(term));
+      const okA=!an||r["Année"]===an;
+      const okN=!nu||r["Numéro"]===nu;
+      return okS&&okA&&okN;
+    });
+
   if (sortCol){
     const dir=sortDir==="asc"?1:-1;
     data.sort((a,b)=> (""+a[sortCol]).localeCompare(""+b[sortCol],"fr")*dir);
@@ -145,10 +151,11 @@ function applyFiltersSortPaginate(){
   const start=(currentPage-1)*per;
   return {data,page:data.slice(start,start+per),total:data.length,per};
 }
+
 function render(){
   const tb=document.getElementById("articles-body"); if(!tb) return;
   const {page,total,per}=applyFiltersSortPaginate();
-  if (!page.length) { tb.innerHTML=`<tr><td colspan="8">Aucun article trouvé.</td></tr>`; }
+  if (!page.length) { tb.innerHTML=`<tr><td colspan="9">Aucun article trouvé.</td></tr>`; }
   else {
     tb.innerHTML = page.map(r=>`
       <tr>
@@ -160,6 +167,10 @@ function render(){
         <td>${r["Ville(s)"]||""}</td>
         <td>${r["Theme(s)"]||""}</td>
         <td>${r["Epoque"]||""}</td>
+        <td class="actions">
+          <button class="edit" onclick="window._editOpen?.(${r.__idx})">✏️</button>
+          <button class="del"  onclick="window._delete?.(${r.__idx})">🗑️</button>
+        </td>
       </tr>
     `).join("");
   }
@@ -206,58 +217,95 @@ async function saveToGitHubMerged(newRow){
                     .map(v => (v||"").toLowerCase().trim())
                     .join("¦");
 
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    // 1) Lire dernière version
-    let sha = null, remoteRows = [];
-    const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+  showLoading(true);
+  try {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      // 1) Lire dernière version
+      let sha = null, remoteRows = [];
+      const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
 
-    if (get.status === 404) {
-      remoteRows = [];
-    } else if (get.ok) {
-      const j   = await get.json();
-      sha       = j.sha;
-      const csv = decodeB64(j.content);
-      remoteRows = parseCsvFlexible(csv);
-    } else {
-      const body = await get.text();
-      throw new Error(`GET ${get.status}\n${body}`);
+      if (get.status === 404) {
+        remoteRows = [];
+      } else if (get.ok) {
+        const j   = await get.json();
+        sha       = j.sha;
+        const csv = decodeB64(j.content);
+        remoteRows = parseCsvFlexible(csv);
+      } else {
+        const body = await get.text();
+        throw new Error(`GET ${get.status}\n${body}`);
+      }
+
+      // 2) Fusion (anti-doublon sur Année+Numéro+Titre)
+      const seen   = new Set(remoteRows.map(key));
+      const merged = [...remoteRows];
+      if (newRow && !seen.has(key(newRow))) merged.push(newRow);
+
+      // 3) Commit
+      const body = {
+        message: sha ? "maj UI (merge append)" : "init + ajout",
+        content: encodeB64(toCSV(merged)),
+        branch,
+        ...(sha ? { sha } : {})
+      };
+
+      const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
+
+      if (put.ok) {
+        const txt = await put.text(); let commitUrl="";
+        try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
+        setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
+        alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
+        return;
+      }
+
+      if (put.status === 409) {
+        const wait = 300 * attempt; // backoff
+        console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
+        await sleep(wait);
+        continue;
+      }
+
+      const errTxt = await put.text();
+      throw new Error(`PUT ${put.status}\n${errTxt}`);
     }
 
-    // 2) Fusion (anti-doublon sur Année+Numéro+Titre)
-    const seen   = new Set(remoteRows.map(key));
-    const merged = [...remoteRows];
-    if (newRow && !seen.has(key(newRow))) merged.push(newRow);
-
-    // 3) Commit
-    const body = {
-      message: sha ? "maj UI (merge append)" : "init + ajout",
-      content: encodeB64(toCSV(merged)),
-      branch,
-      ...(sha ? { sha } : {})
-    };
-
-    const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
-
-    if (put.ok) {
-      const txt = await put.text(); let commitUrl="";
-      try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
-      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
-      alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
-      return;
-    }
-
-    if (put.status === 409) {
-      const wait = 300 * attempt; // backoff
-      console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
-      await sleep(wait);
-      continue;
-    }
-
-    const errTxt = await put.text();
-    throw new Error(`PUT ${put.status}\n${errTxt}`);
+    throw new Error("Conflit 409 persistant après 5 tentatives.");
+  } finally {
+    showLoading(false);
   }
+}
 
-  throw new Error("Conflit 409 persistant après 5 tentatives.");
+/* ========= Enregistrer tout le tableau (édition/suppression) ========= */
+async function saveAllRowsToGithub(rows, message="maj (édition/suppression)") {
+  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+  const headers = { Authorization:`token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
+  const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const branch = GITHUB_BRANCH;
+
+  showLoading(true);
+  try {
+    for (let attempt=1; attempt<=5; attempt++){
+      // lire dernier sha
+      let sha=null;
+      const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+      if (get.status===404) sha=null;
+      else if (get.ok){ const j=await get.json(); sha=j.sha; }
+      else { throw new Error(`GET ${get.status}\n${await get.text()}`); }
+
+      const body = { message, content: encodeB64(toCSV(rows)), branch, ...(sha?{sha}:{}) };
+      const put  = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
+      if (put.ok){
+        setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 800);
+        return;
+      }
+      if (put.status===409){ await sleep(250*attempt); continue; }
+      throw new Error(`PUT ${put.status}\n${await put.text()}`);
+    }
+    throw new Error("Conflit 409 persistant.");
+  } finally {
+    showLoading(false);
+  }
 }
 
 /* ========= INIT CSV SI MANQUANT ========= */
@@ -274,105 +322,69 @@ async function initCsvIfMissing(){
   alert("CSV initialisé ✅"); await probePublicAndLoad(); resetFiltersUI(); render();
 }
 
-/* ========= IMPORT / EXPORT ========= */
-async function pickLocalCsvText() {
-  return new Promise((resolve, reject) => {
-    const input = document.getElementById("import-file");
-    if (!input) return reject(new Error("input#import-file manquant"));
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      input.value = "";
-      if (!file) return reject(new Error("Aucun fichier sélectionné"));
-      try { resolve(await file.text()); } catch (e) { reject(e); }
-    };
-    input.click();
-  });
-}
-function validateImportedRows(rows) {
-  if (!Array.isArray(rows) || rows.length===0) throw new Error("CSV vide");
-  const must = ["Année","Numéro","Titre"];
-  const missing = must.filter(k => !(k in rows[0]));
-  if (missing.length) {
-    throw new Error("Colonnes manquantes: " + missing.join(", ") + 
-      "\nAttendu: Année, Numéro, Titre, Page(s), Auteur(s), Ville(s), Theme(s), Epoque");
-  }
-}
-async function saveWholeCsvToGithub(importRows, mode /* 'merge' | 'replace' */) {
-  if (!GHTOKEN) { alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+/* ========= ÉDITION / SUPPRESSION ========= */
+let EDIT_INDEX = null;
 
-  const headers = {
-    Authorization: `token ${GHTOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "Content-Type": "application/json"
-  };
-  const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
-  const branch = GITHUB_BRANCH;
-
-  const key = r => [r["Année"], r["Numéro"], r["Titre"]]
-                    .map(v => (v||"").toLowerCase().trim()).join("¦");
-
-  for (let attempt=1; attempt<=5; attempt++){
-    let sha=null, remote=[];
-    const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
-    if (get.status===404) remote=[];
-    else if (get.ok){ const j=await get.json(); sha=j.sha; remote=parseCsvFlexible(decodeB64(j.content)); }
-    else { throw new Error(`GET ${get.status}\n${await get.text()}`); }
-
-    let merged=[];
-    if (mode==="replace") {
-      merged = importRows;
-    } else {
-      const seen = new Set(remote.map(key));
-      merged = remote.slice();
-      for (const r of importRows) if (!seen.has(key(r))) merged.push(r);
-    }
-
-    const body = {
-      message: mode==="replace" ? "import: remplacement complet" : "import: fusion",
-      content: encodeB64(toCSV(merged)),
-      branch,
-      ...(sha ? { sha } : {})
-    };
-    const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
-
-    if (put.ok) {
-      const txt=await put.text(); let commitUrl="";
-      try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
-      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1200);
-      alert(`Import ${mode==="replace"?"(remplacement)": "(fusion)"} OK ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
-      return;
-    }
-    if (put.status===409) { const wait = 300*attempt; await sleep(wait); continue; }
-    throw new Error(`PUT ${put.status}\n${await put.text()}`);
-  }
-  throw new Error("Conflit 409 persistant après 5 tentatives.");
-}
-window._importCsv = async (mode) => {
-  try {
-    if (!mode) mode = "merge";
-    const text = await pickLocalCsvText();
-    const rows = parseCsvFlexible(text);
-    validateImportedRows(rows);
-    const msg = mode==="replace"
-      ? `⚠️ Remplacer TOUTE la base par ${rows.length} lignes ?`
-      : `Fusionner ${rows.length} lignes avec la base existante ?`;
-    if (!confirm(msg)) return;
-    await saveWholeCsvToGithub(rows, mode);
-  } catch(e) {
-    console.error("[IMPORT]", e);
-    alert("Échec import : " + (e?.message || e));
-  }
-};
-window._exportCsv = ()=> {
-  const blob = new Blob([toCSV(ARTICLES||[])], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "articles_export.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
+window._editOpen = (idx) => {
+  EDIT_INDEX = idx;
+  const r = ARTICLES[idx];
+  if (!r) return;
+  const set=(id,v)=>{ const el=document.getElementById(id); if (el) el.value = v||""; };
+  set("edit-annee",   r["Année"]);
+  set("edit-numero",  r["Numéro"]);
+  set("edit-titre",   r["Titre"]);
+  set("edit-pages",   r["Page(s)"]);
+  set("edit-auteurs", r["Auteur(s)"]);
+  set("edit-villes",  r["Ville(s)"]);
+  set("edit-themes",  r["Theme(s)"]);
+  set("edit-epoque",  r["Epoque"]);
+  document.getElementById("edit-drawer")?.classList.remove("hidden");
 };
 
-/* ========= HANDLERS GLOBAUX (onclick HTML) ========= */
+window._editCancel = () => {
+  EDIT_INDEX = null;
+  document.getElementById("edit-drawer")?.classList.add("hidden");
+};
+
+window._editSave = async () => {
+  try{
+    if (EDIT_INDEX==null) return;
+    const get=id=>document.getElementById(id)?.value?.trim()||"";
+    const updated = {
+      "Année":get("edit-annee"), "Numéro":get("edit-numero"), "Titre":get("edit-titre"),
+      "Page(s)":get("edit-pages"), "Auteur(s)":get("edit-auteurs"), "Ville(s)":get("edit-villes"),
+      "Theme(s)":get("edit-themes"), "Epoque":get("edit-epoque")
+    };
+    if (!updated["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+
+    // MAJ locale + affichage immédiat
+    ARTICLES[EDIT_INDEX] = updated;
+    render(); populateDatalists();
+
+    if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+    await saveAllRowsToGithub(ARTICLES, "maj UI (édition)");
+    document.getElementById("edit-drawer")?.classList.add("hidden");
+    EDIT_INDEX=null;
+  } catch(e){ alert("Échec édition : "+(e?.message||e)); }
+};
+
+window._delete = async (idx) => {
+  try{
+    const r = ARTICLES[idx];
+    if (!r) return;
+    const ok = confirm(`Supprimer cet article ?\n\n${r["Année"]||""} • ${r["Numéro"]||""}\n${r["Titre"]||""}`);
+    if (!ok) return;
+
+    // suppression locale + affichage
+    ARTICLES.splice(idx,1);
+    render(); populateDatalists();
+
+    if (!GHTOKEN){ alert("Supprimé localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+    await saveAllRowsToGithub(ARTICLES, "maj UI (suppression)");
+  } catch(e){ alert("Échec suppression : "+(e?.message||e)); }
+};
+
+/* ========= HANDLERS AJOUT / ENREG. ========= */
 window._save = async ()=>{ try{
   if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
   await saveToGitHubMerged(ARTICLES[0]);
@@ -387,7 +399,7 @@ window._add = async (ev)=>{ try{
               "Page(s)":get("add-pages"), "Auteur(s)":get("add-auteurs"), "Ville(s)":get("add-villes"),
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
-  ARTICLES.unshift(row); currentPage=1; render();
+  ARTICLES.unshift(row); currentPage=1; render(); populateDatalists();
   if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
   const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
   try { await saveToGitHubMerged(row); }
@@ -403,8 +415,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("filter-numero")?.addEventListener("change", ()=>{ document.getElementById("filter-annee").value=""; currentPage=1; render(); });
   document.getElementById("limit")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("search")?.addEventListener("input", ()=>{ currentPage=1; render(); });
-
-  // Tri
   document.querySelectorAll("th[data-col]").forEach(th=>{
     th.addEventListener("click", ()=>{
       const col=th.getAttribute("data-col");
@@ -412,6 +422,5 @@ document.addEventListener("DOMContentLoaded", async ()=>{
       currentPage=1; render();
     });
   });
-
   setBadge("status-auth", !!GHTOKEN);
 });
