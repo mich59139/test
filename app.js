@@ -155,44 +155,76 @@ window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadg
 
 /* ========= SAVE (sans Cache-Control) ========= */
 async function saveToGitHubMerged(newRow){
-  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+  const owner="mich59139", repo="test", branch="main", path="data/articles.csv";
+  const token = localStorage.getItem("ghtoken");
+  if (!token) { alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+
   const headers = {
-    Authorization: `token ${GHTOKEN}`,
+    Authorization: `token ${token}`,
     "Accept": "application/vnd.github+json",
     "Content-Type": "application/json"
   };
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const contentsUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
-  // lire distant
-  const get = await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+  // 1) lire distant
   let sha=null, remoteRows=[];
-  if (get.status===404) remoteRows=[];
-  else if (get.ok){ const j=await get.json(); sha=j.sha; remoteRows=parseCsvFlexible(decodeB64(j.content)); }
-  else { const t=await get.text(); alert(`Lecture KO: ${get.status}\n${t}`); throw new Error("load failed"); }
+  const get = await fetch(`${contentsUrl}?ref=${encodeURIComponent(branch)}`, { headers });
+  if (get.status === 404){
+    remoteRows = []; // init
+  } else if (get.ok){
+    const j = await get.json();
+    sha = j.sha;
+    const csv = decodeURIComponent(escape(atob(j.content)));
+    remoteRows = parseCsvFlexible(csv);
+  } else {
+    const body = await get.text();
+    alert(`Lecture KO: ${get.status}\n${body.slice(0,300)}`);
+    throw new Error("load failed");
+  }
 
-  // merge append-only
-  const key=r=>[r["Année"],r["Numéro"],r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
-  const seen=new Set(remoteRows.map(key));
-  const merged=[...remoteRows];
+  // 2) fusion append-only
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
+  const seen = new Set(remoteRows.map(key));
+  const merged = [...remoteRows];
   if (newRow && !seen.has(key(newRow))) merged.push(newRow);
 
-  const bodyBase={ message: sha?"maj UI (update)":"init + ajout", content: encodeB64(toCSV(merged)), branch:GITHUB_BRANCH };
-  let attempts=0;
-  while (attempts<3){
-    const put=await fetch(url,{ method:"PUT", headers, body: JSON.stringify(sha?{...bodyBase, sha}:{...bodyBase}) });
-    if (put.status!==409){
-      if (!put.ok){ const t=await put.text(); alert(`Commit KO: ${put.status}\n${t}`); throw new Error("put failed"); }
-      await probePublicAndLoad(); // refresh
-      return;
-    }
-    const r2=await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
-    if (!r2.ok){ const t2=await r2.text(); alert(`Retry GET KO: ${r2.status}\n${t2}`); throw new Error("retry failed"); }
-    const j2=await r2.json(); sha=j2.sha; attempts++;
-  }
-  alert("Conflit 409 persistant. Réessaie dans quelques secondes.");
-  throw new Error("conflict");
-}
+  const HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
+  const esc = v => { const s=(v??"").toString(); return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s; };
+  const csvOut = [HEADERS.join(",")].concat(merged.map(r=>HEADERS.map(h=>esc(r[h])).join(","))).join("\n");
 
+  // 3) PUT (+ retry 409)
+  let attempts = 0, put, bodyTxt;
+  while (attempts < 3) {
+    const body = {
+      message: sha ? "maj UI (update)" : "init + ajout",
+      content: btoa(unescape(encodeURIComponent(csvOut))),
+      branch,
+      ...(sha ? { sha } : {})
+    };
+    put = await fetch(contentsUrl, { method:"PUT", headers, body: JSON.stringify(body) });
+    if (put.status === 409) {
+      // relecture du sha et retry
+      const r2 = await fetch(`${contentsUrl}?ref=${encodeURIComponent(branch)}`, { headers });
+      if (!r2.ok) { bodyTxt = await r2.text(); alert(`Retry GET KO: ${r2.status}\n${bodyTxt}`); throw new Error("retry get failed"); }
+      const j2 = await r2.json(); sha = j2.sha; attempts++; continue;
+    }
+    break;
+  }
+
+  bodyTxt = await put.text();
+  if (!put.ok) {
+    // erreurs fréquentes : 401 (token), 403 (scopes), 422 (branche protégée)
+    alert(`Commit KO: ${put.status}\n${bodyTxt.slice(0,500)}`);
+    throw new Error(`put failed ${put.status}`);
+  }
+
+  // 4) succès → on affiche l’URL du commit
+  let commitUrl = "";
+  try { const j = JSON.parse(bodyTxt); commitUrl = j?.commit?.html_url || ""; } catch {}
+  await probePublicAndLoad(); // refresh lecture publique
+  alert(`Enregistré ✅${commitUrl ? `\nCommit: ${commitUrl}` : ""}`);
+  if (commitUrl) console.log("Commit:", commitUrl);
+}
 /* ========= INIT CSV SI MANQUANT (sans Cache-Control) ========= */
 async function initCsvIfMissing(){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); return; }
