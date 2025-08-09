@@ -1,7 +1,7 @@
 /* ========= CONFIG ========= */
 const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "nouveau";           // dépôt
-const GITHUB_BRANCH = "main";              // branche
+const GITHUB_BRANCH = "test";              // branche
 const CSV_PATH      = "data/articles.csv"; // chemin
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
