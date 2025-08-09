@@ -10,23 +10,49 @@
     <button id="login-btn">🔐 Se connecter GitHub</button>
     <button id="logout-btn">🚪 Déconnexion</button>
     <button id="save-btn">💾 Enregistrer dans GitHub</button>
-    <div id="toolbar"></div>
+
+    <div id="toolbar">
+      <label>Année :
+        <select id="filter-annee"><option value="">(toutes)</option></select>
+      </label>
+      <label>Numéro :
+        <select id="filter-numero"><option value="">(tous)</option></select>
+      </label>
+      <label>Afficher :
+        <select id="limit">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="all">Tous</option>
+        </select>
+      </label>
+      <input id="search" placeholder="Rechercher…">
+    </div>
+
     <div id="articles"></div>
 
-    <!-- Boîte d'ajout -->
+    <!-- Formulaire d'ajout -->
     <div id="form-container" style="border:1px solid #ccc; padding:10px; margin-top:20px;">
         <h2>Ajouter un article</h2>
-        <input type="text" placeholder="Année" id="annee"><br>
-        <input type="text" placeholder="Numéro" id="numero"><br>
-        <input type="text" placeholder="Titre" id="titre"><br>
-        <input type="text" placeholder="Pages" id="pages"><br>
-        <input type="text" placeholder="Auteur(s)" id="auteurs"><br>
-        <input type="text" placeholder="Ville(s)" id="villes"><br>
-        <input type="text" placeholder="Thème(s)" id="themes"><br>
-        <input type="text" placeholder="Époque" id="epoque"><br>
+        <input name="Année" placeholder="Année" list="dl-annee">
+        <input name="Numéro" placeholder="Numéro" list="dl-numero">
+        <input name="Titre" placeholder="Titre">
+        <input name="Page(s)" placeholder="Pages">
+        <input name="Auteur(s)" placeholder="Auteur(s)" list="dl-auteurs">
+        <input name="Ville(s)" placeholder="Ville(s)" list="dl-villes">
+        <input name="Theme(s)" placeholder="Thème(s)" list="dl-themes">
+        <input name="Epoque" placeholder="Période" list="dl-epoques">
         <button id="save-in-drawer">💾 Enregistrer dans GitHub</button>
     </div>
 
+    <!-- datalists -->
+    <datalist id="dl-annee"></datalist>
+    <datalist id="dl-numero"></datalist>
+    <datalist id="dl-auteurs"></datalist>
+    <datalist id="dl-villes"></datalist>
+    <datalist id="dl-themes"></datalist>
+    <datalist id="dl-epoques"></datalist>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
