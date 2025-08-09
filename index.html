@@ -18,25 +18,47 @@
     <span id="gh-msg" class="notice"></span>
   </div>
 
-  <!-- Actions -->
+  <!-- Commandes -->
   <div class="controls">
-    <button id="login-btn"  onclick="window._login?.()">🔐 Se connecter GitHub</button>
-    <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-    <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
-    <button id="init-btn"   onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
+    <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
+    <button onclick="window._logout?.()">🚪 Déconnexion</button>
+    <button onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
+    <button onclick="window._init?.()">🧩 Créer data/articles.csv (si manquant)</button>
+    <button onclick="window._reloadRaw?.()">🔄 Recharger depuis GitHub</button>
+
+    <!-- Import / Export -->
+    <input id="import-file" type="file" accept=".csv,text/csv" hidden>
+    <button onclick="window._importCsv?.('merge')">📥 Importer CSV (fusion)</button>
+    <button onclick="window._importCsv?.('replace')">⚠️ Importer CSV (remplacer)</button>
+    <button onclick="window._exportCsv?.()">⬇️ Exporter CSV</button>
   </div>
 
-  <!-- Ajout -->
+  <!-- Ajout d'article (avec suggestions par datalist) -->
   <div class="form-add" id="add-box">
     <h2>Ajouter un article</h2>
-    <input type="text" id="add-annee"   placeholder="Année">
-    <input type="text" id="add-numero"  placeholder="Numéro">
+
+    <input type="text" id="add-annee"   placeholder="Année"   list="dl-annee">
+    <datalist id="dl-annee"></datalist>
+
+    <input type="text" id="add-numero"  placeholder="Numéro"  list="dl-numero">
+    <datalist id="dl-numero"></datalist>
+
     <input type="text" id="add-titre"   placeholder="Titre" required>
+
     <input type="text" id="add-pages"   placeholder="Page(s)">
-    <input type="text" id="add-auteurs" placeholder="Auteur(s)">
-    <input type="text" id="add-villes"  placeholder="Ville(s)">
-    <input type="text" id="add-themes"  placeholder="Thème(s)">
-    <input type="text" id="add-epoque"  placeholder="Période">
+
+    <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
+    <datalist id="dl-auteurs"></datalist>
+
+    <input type="text" id="add-villes"  placeholder="Ville(s)"  list="dl-villes">
+    <datalist id="dl-villes"></datalist>
+
+    <input type="text" id="add-themes"  placeholder="Thème(s)"  list="dl-themes">
+    <datalist id="dl-themes"></datalist>
+
+    <input type="text" id="add-epoque"  placeholder="Période"   list="dl-epoque">
+    <datalist id="dl-epoque"></datalist>
+
     <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter et enregistrer</button>
   </div>
 
