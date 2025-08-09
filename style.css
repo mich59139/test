@@ -13,7 +13,8 @@ h2{margin:0 0 8px}
 
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 button{cursor:pointer;border:1px solid var(--border);background:var(--card);padding:8px 12px;border-radius:10px}
-#save-btn,#add-btn{background:var(--accent);border-color:#1d4ed8;color:#fff}
+.controls button:hover{filter:brightness(0.98)}
+#add-btn,#save-btn{background:var(--accent);border-color:#1d4ed8;color:#fff}
 #logout-btn{background:#fff5f5;border-color:#ffe4e6;color:#b91c1c}
 
 .form-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px}
