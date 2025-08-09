@@ -62,7 +62,49 @@ function buildCsvFromArticles(rows) {
   );
   return lines.join("\n");
 }
+// Normalisation basique
+const trimLite = s => (s ?? "").toString()
+  .replace(/\u00A0/g," ")      // NBSP
+  .replace(/\u200B/g,"")       // zero-width
+  .replace(/[“”«»]/g,'"')      // guillemets
+  .replace(/[’]/g,"'")         // apostrophe
+  .replace(/\s*([,;\/\|])\s*/g,"$1") // espaces autour séparateurs
+  .replace(/\s{2,}/g," ")
+  .trim();
 
+// Canonique pour clé d'unicité (sans accents, en minuscules)
+const canonKey = s => trimLite(s)
+  .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .toLowerCase();
+
+// Découpe multi-valeurs (auteurs, thèmes, villes…)
+function splitMulti(value) {
+  const raw = trimLite(value);
+  if (!raw) return [];
+  return raw
+    .split(/[;,/|·•]/)                          // séparateurs usuels
+    .map(v => v.replace(/^\W+|\W+$/g,""))       // ponctuation en bord
+    .map(v => v.replace(/\s*-\s*/g,"-"))        // tirets propres
+    .map(v => v.replace(/\s{2,}/g," ").trim())
+    .filter(v => v && v !== "i" && v.length >= 2); // ⛔️ enlève “i” seul & trop court
+}
+
+// Construit une liste unique mais garde le premier libellé “joli”
+function uniquePretty(list) {
+  const map = new Map(); // key -> pretty
+  for (const item of list) {
+    const pretty = trimLite(item);
+    if (!pretty) continue;
+    const key = canonKey(pretty);
+    if (!key) continue;
+    // Filtre des bruits typiques
+    if (key === "i") continue;
+    // évite éléments 100% numériques isolés (optionnel pour auteurs/thèmes)
+    if (/^\d+$/.test(pretty)) continue;
+    if (!map.has(key)) map.set(key, pretty);
+  }
+  return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'fr'));
+}
 // ===== UI Populate =====
 function populateFilters() {
   const an = document.getElementById("filter-annee");
@@ -72,16 +114,27 @@ function populateFilters() {
   nu.innerHTML = `<option value="">(tous)</option>`   + uniqueSorted(articles.map(a=>a["Numéro"])).map(v=>`<option>${v}</option>`).join("");
 }
 function populateDatalists() {
-  const fill = (id, list) => {
+  const fill = (id, items) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = uniqueSorted(list).map(v=>`<option value="${v}">`).join("");
+    if (!el) return;
+    el.innerHTML = uniquePretty(items).map(v=>`<option value="${v}">`).join("");
   };
-  fill("dl-annee",   articles.map(a=>a["Année"]));
-  fill("dl-numero",  articles.map(a=>a["Numéro"]));
-  fill("dl-auteurs", articles.map(a=>a["Auteur(s)"]));
-  fill("dl-villes",  articles.map(a=>a["Ville(s)"]));
-  fill("dl-themes",  articles.map(a=>a["Theme(s)"]));
-  fill("dl-epoques", articles.map(a=>a["Epoque"]));
+
+  // Auteurs/Thèmes/Villes peuvent être multiples par ligne
+  const auteurs = articles.flatMap(a => splitMulti(a["Auteur(s)"]));
+  const themes  = articles.flatMap(a => splitMulti(a["Theme(s)"]));
+  const villes  = articles.flatMap(a => splitMulti(a["Ville(s)"]));
+
+  // Année / Numéro : valeurs simples
+  const annees  = articles.map(a => trimLite(a["Année"]));
+  const numeros = articles.map(a => trimLite(a["Numéro"]));
+
+  fill("dl-annee",   annees);
+  fill("dl-numero",  numeros);
+  fill("dl-auteurs", auteurs);
+  fill("dl-villes",  villes);
+  fill("dl-themes",  themes);
+  fill("dl-epoques", articles.map(a => trimLite(a["Epoque"])));
 }
 
 // ===== Filtrage / Tri / Pagination =====
