@@ -16,10 +16,10 @@ body{
 }
 
 /* Conteneur centré + largeur max ~3/4 */
-.shell{
-  max-width:1200px; /* garde ~3/4 sur grands écrans */
-  margin:0 auto;
-  padding:0 8px;
+.shell {
+  max-width: 1400px; /* un peu plus large */
+  margin: 0 auto;
+  padding: 0 8px;
 }
 
 h1{margin:0 0 14px; font-size:24px}
