@@ -1,33 +1,10 @@
 /* ========= CONFIG ========= */
-cconst GITHUB_OWNER  = "mich59139";
+const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
-const CSV_PATH      = "data/articles.csv"; // <— sans espace !
+const CSV_PATH      = "data/articles.csv";
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
-async function verifyGithubTarget() {
-  if (!GHTOKEN) { alert("Pas de token (🔐 d’abord)"); return; }
-  const H = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
-
-  const repoUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`;
-  const brUrl   = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
-  const fileUrl = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
-
-  const r1 = await fetch(repoUrl, { headers: H });   console.log("repo", r1.status);
-  const r2 = await fetch(brUrl,   { headers: H });   console.log("branch", r2.status);
-  const r3 = await fetch(fileUrl, { headers: H });   console.log("contents", r3.status);
-
-  if (!r1.ok) return alert("Repo introuvable (owner/repo ?)");
-  if (!r2.ok) return alert("Branche introuvable (fais un 1er commit sur main)");
-  if (r3.status === 404) {
-    alert("Le fichier data/articles.csv n'existe pas encore : je vais le créer au prochain 💾");
-  } else if (!r3.ok) {
-    alert("Erreur accès fichier: " + r3.status);
-  } else {
-    const j = await r3.json();
-    console.log("sha courant:", j.sha);
-  }
-}
 /* ========= TOKEN EN SESSION ========= */
 let GHTOKEN = sessionStorage.getItem("ghtoken") || null;
 const setToken = t => { GHTOKEN = t?.trim() || null; GHTOKEN ? sessionStorage.setItem("ghtoken", GHTOKEN) : sessionStorage.removeItem("ghtoken"); };
@@ -35,7 +12,7 @@ const setToken = t => { GHTOKEN = t?.trim() || null; GHTOKEN ? sessionStorage.se
 /* ========= ETAT ========= */
 let articles = [];               // objets normalisés
 let pendingAdds = [];            // lignes ajoutées via le formulaire (append-only)
-const APPEND_ONLY = true;        // évite d’écraser, on ajoute au CSV distant
+const APPEND_ONLY = true;        // on ajoute sans écraser
 let currentPage = 1;
 let rowsPerPage = 50;
 let currentSort = { col: null, dir: "asc" };
@@ -44,6 +21,8 @@ let currentSort = { col: null, dir: "asc" };
 const norm = s => (s ?? "").toString().replace(/\u00A0/g," ").replace(/\u200B/g,"").trim();
 const deaccent = s => norm(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const canonKey = s => deaccent(s||"").toLowerCase();
+const rowKey = r => [r["Année"], r["Numéro"], r["Titre"]].map(x => canonKey(x||"")).join("¦");
+const uniqueSorted = arr => [...new Set(arr.filter(v=>norm(v)!==""))].sort((a,b)=>(""+a).localeCompare(""+b,"fr"));
 
 function normalizeKeys(row) {
   const out = {};
@@ -61,7 +40,6 @@ function normalizeKeys(row) {
   }
   return out;
 }
-
 function parseCsv(delim, text) {
   const r = Papa.parse(text, { header:true, skipEmptyLines:true, delimiter:delim });
   const rows = (r.data||[]).map(normalizeKeys).filter(o => Object.values(o).some(v => norm(v)!==""));
@@ -73,8 +51,6 @@ function parseCsvFlexible(text) {
   if ((meta.fields||[]).length<=1 && text.includes(";")) ({ rows, meta } = parseCsv(";", text));
   return rows;
 }
-
-function uniqueSorted(arr){ return [...new Set(arr.filter(v=>norm(v)!==""))].sort((a,b)=>(""+a).localeCompare(""+b,"fr")); }
 
 /* multi-valeurs (auteurs/thèmes/villes) */
 function splitMulti(value) {
@@ -94,14 +70,31 @@ function uniquePretty(list) {
     if (!pretty) continue;
     const key = canonKey(pretty);
     if (!key || key === "i") continue;
-    if (/^\d+$/.test(pretty)) continue; // évite nombres isolés
+    if (/^\d+$/.test(pretty)) continue;
     if (!map.has(key)) map.set(key, pretty);
   }
   return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'fr'));
 }
 
-/* clé d’unicité pour doublons (évite d’ajouter deux fois la même entrée) */
-const rowKey = r => [r["Année"], r["Numéro"], r["Titre"]].map(x => canonKey(x||"")).join("¦");
+/* ========= PANNEAU D’ÉTAT ========= */
+function setBadge(id, ok){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("ok","err");
+  el.classList.add(ok ? "ok" : "err");
+  el.textContent = el.textContent.replace("❌","").replace("✅","").split(" ")[0] + " " + (ok?"✅":"❌");
+}
+async function verifyGithubTarget() {
+  if (!GHTOKEN) { alert("Pas de token (🔐 d’abord)"); return; }
+  const H = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
+  const repoUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`;
+  const brUrl   = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
+  const fileUrl = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  const r1 = await fetch(repoUrl, { headers: H }); setBadge("status-repo", r1.ok);
+  const r2 = await fetch(brUrl,   { headers: H }); setBadge("status-branch", r2.ok);
+  const r3 = await fetch(fileUrl, { headers: H });
+  setBadge("status-file", r3.ok || r3.status===404); // 404 = sera créé
+}
 
 /* ========= CHARGEMENT ========= */
 async function reloadCsv(reset=false) {
@@ -123,7 +116,7 @@ async function reloadCsv(reset=false) {
   render();
 }
 
-/* Chargement immédiat depuis l’API GitHub (après commit, pour éviter l’attente CDN) */
+/* Chargement immédiat via API (après commit) */
 async function loadCsvFromApi() {
   if (!GHTOKEN) return;
   const headers = { Authorization: `token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Cache-Control":"no-cache" };
@@ -216,7 +209,7 @@ function render(){
 
   const maxPage = Math.max(1, Math.ceil(all.length/rowsPerPage));
   html += `</tbody></table>
-    <div style="margin-top:8px;">
+    <div class="pager">
       <button ${currentPage<=1?"disabled":""} onclick="currentPage--;render()">◀ Précédent</button>
       <span>Page ${currentPage} / ${maxPage} — ${all.length} résultats</span>
       <button ${currentPage>=maxPage?"disabled":""} onclick="currentPage++;render()">Suivant ▶</button>
@@ -237,7 +230,6 @@ function addFromForm() {
     "Theme(s)":  splitMulti($("Theme(s)")?.value).join("; "),
     "Epoque":    norm($("Epoque")?.value),
   };
-  // évite doublon strict (Année+Numéro+Titre)
   if (articles.some(r => rowKey(r) === rowKey(row))) {
     alert("Doublon détecté : même Année + Numéro + Titre.");
     return;
@@ -248,7 +240,7 @@ function addFromForm() {
   render();
 }
 
-/* ========= CONSTRUCTION CSV ========= */
+/* ========= CSV ========= */
 function buildCsvFromArticles(rows) {
   const headers = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
   const lines = [headers.join(",")].concat(
@@ -261,17 +253,18 @@ function buildCsvFromArticles(rows) {
   return lines.join("\n");
 }
 
-/* ========= GITHUB SAVE (robuste + retry 409) ========= */
+/* ========= GITHUB SAVE ========= */
 function toBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
 
 async function githubLoginInline() {
   const t = prompt("Collez votre token GitHub (scope public_repo) :");
   if (!t) return;
   setToken(t);
+  setBadge("status-auth", true);
   // test léger (404 toléré si le fichier n'existe pas encore)
   const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
   const r = await fetch(url, { headers:{ Authorization:`token ${GHTOKEN}` } });
-  if (!r.ok && r.status!==404){ alert(`Token/accès KO (HTTP ${r.status})`); setToken(null); return; }
+  if (!r.ok && r.status!==404){ alert(`Token/accès KO (HTTP ${r.status})`); setToken(null); setBadge("status-auth", false); return; }
   const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)";
   alert("Connecté à GitHub ✅");
 }
@@ -288,10 +281,12 @@ async function saveToGitHubMerged() {
 
   // 0) Branche existante ?
   const br = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/branches/${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+  setBadge("status-branch", br.ok);
   if (!br.ok) { alert("Branche introuvable (ajoute un 1er commit sur 'main')."); return; }
 
   const getLatest = async () => {
     const r = await fetch(contentsUrl + `?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+    setBadge("status-file", r.ok || r.status===404);
     if (r.status === 404) return { sha: null, rows: [] };
     if (!r.ok) throw new Error(`GET contents ${r.status}: ${await r.text()}`);
     const j = await r.json();
@@ -313,7 +308,6 @@ async function saveToGitHubMerged() {
     }
     toWriteRows = remoteRows.concat(newAdds.length ? newAdds : []);
   } else {
-    // merge complet (si tu veux basculer un jour)
     const key = r => [r["Titre"], r["Numéro"], r["Année"]].map(v=>v||"").join("¦");
     const map = new Map(remoteRows.map(r => [key(r), r]));
     for (const r of articles) map.set(key(r), r);
@@ -360,23 +354,33 @@ function wireUI(){
   if (lim) lim.addEventListener("change", ()=>{ currentPage=1; render(); });
   if (sch) sch.addEventListener("input", ()=>{ currentPage=1; render(); });
 
+  // 🔐 login → vérification cible
   document.getElementById("login-btn")?.addEventListener("click", async () => {
-  await githubLoginInline();
-  await verifyGithubTarget(); // debug : vérifie owner/repo/branche/fichier
-});
-  document.getElementById("logout-btn")?.addEventListener("click", ()=>{ setToken(null); const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub"; alert("Token oublié (session nettoyée)."); });
+    await githubLoginInline();
+    await verifyGithubTarget();
+    setBadge("status-auth", !!GHTOKEN);
+    setBadge("status-repo", true); // si on est là, l'owner/repo est valide
+  });
+
+  document.getElementById("logout-btn")?.addEventListener("click", ()=>{
+    setToken(null);
+    setBadge("status-auth", false);
+    alert("Token oublié (session nettoyée).");
+    const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub";
+  });
+
   document.getElementById("save-btn")?.addEventListener("click", saveToGitHubMerged);
 
   // bouton du formulaire (en haut)
   document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{
     addFromForm();              // ajoute à articles + pendingAdds
-    await saveToGitHubMerged(); // enregistre + vue instantanée
+    await saveToGitHubMerged(); // enregistre + vue immédiate
   });
 }
 
 /* ========= INIT ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
-  if (GHTOKEN){ const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)"; }
+  if (GHTOKEN){ const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)"; setBadge("status-auth", true); }
   try {
     await reloadCsv(true);
     wireUI();
