@@ -1,4 +1,4 @@
-/* ========= CONFIG ========= */
+/* ========= CONFIG (adapter si besoin) ========= */
 const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
@@ -8,7 +8,6 @@ const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHU
 let GHTOKEN = localStorage.getItem("ghtoken") || null;
 let ARTICLES = [];
 let currentPage = 1;
-let rowsPerPage = 50;
 let sortCol = null, sortDir = "asc";
 
 /* ========= UTILS ========= */
@@ -18,8 +17,9 @@ const toCSV = rows => [HEADERS.join(",")].concat(rows.map(r=>HEADERS.map(h=>esc(
 const decodeB64 = b64 => decodeURIComponent(escape(atob(b64)));
 const encodeB64 = str => btoa(unescape(encodeURIComponent(str)));
 const setBadge = (id, ok) => { const el=document.getElementById(id); if(!el)return; el.textContent = ok?"✅":"❌"; el.style.color = ok? "#16a34a":"#dc2626"; };
+const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr"));
 
-/* ========= PARSEUR ROBUSTE ========= */
+/* ========= PARSEUR CSV ROBUSTE ========= */
 function normalizeHeader(h) {
   const t = (h||"").trim();
   if (/^annee$/i.test(t) || /^année$/i.test(t)) return "Année";
@@ -43,13 +43,26 @@ function parseCsvFlexible(text) {
     "Année": row["Année"] ?? "",
     "Numéro": row["Numéro"] ?? "",
     "Titre": row["Titre"] ?? "",
-    "Page(s)": row["Page(s)"] ?? row["Page(s]"] ?? "",
+    "Page(s)": row["Page(s)"] ?? "",
     "Auteur(s)": row["Auteur(s)"] ?? "",
     "Ville(s)": row["Ville(s)"] ?? "",
     "Theme(s)": row["Theme(s)"] ?? "",
     "Epoque": row["Epoque"] ?? row["Période"] ?? row["Periode"] ?? ""
   }));
   return rows.filter(r => Object.values(r).some(v => (v||"").toString().trim()!==""));
+}
+
+/* ========= RESET FILTRES ========= */
+function resetFiltersUI() {
+  const fA = document.getElementById("filter-annee");
+  const fN = document.getElementById("filter-numero");
+  const s  = document.getElementById("search");
+  const l  = document.getElementById("limit");
+  if (fA) fA.value = "";
+  if (fN) fN.value = "";
+  if (s)  s.value  = "";
+  if (l)  l.value  = "50";
+  currentPage = 1;
 }
 
 /* ========= LECTURE PUBLIQUE + BADGES ========= */
@@ -68,6 +81,7 @@ async function probePublicAndLoad() {
         const text = await r.text();
         ARTICLES = parseCsvFlexible(text);
         populateFilters();
+        resetFiltersUI();
         render();
       } else {
         document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
@@ -81,7 +95,6 @@ async function probePublicAndLoad() {
 }
 
 /* ========= UI ========= */
-function uniqSorted(a){ return [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr")); }
 function populateFilters(){
   const an=document.getElementById("filter-annee");
   const nu=document.getElementById("filter-numero");
@@ -134,8 +147,7 @@ function wireSorting(){
   document.querySelectorAll("th[data-col]").forEach(th=>{
     th.addEventListener("click", ()=>{
       const col=th.getAttribute("data-col");
-      if (sortCol===col) sortDir = (sortDir==="asc")?"desc":"asc";
-      else { sortCol=col; sortDir="asc"; }
+      if (sortCol===col) sortDir = (sortDir==="asc")?"desc":"asc"; else { sortCol=col; sortDir="asc"; }
       currentPage=1; render();
     });
   });
@@ -143,17 +155,17 @@ function wireSorting(){
 
 /* ========= LOGIN / LOGOUT ========= */
 async function githubLoginInline(){
-  const t=prompt("Collez votre token GitHub (scope public_repo) :");
+  const t=prompt("Collez votre token GitHub (scope public_repo si repo public) :");
   if (!t) return;
   GHTOKEN=t.trim();
   localStorage.setItem("ghtoken", GHTOKEN);
   setBadge("status-auth", true);
   alert("Connecté à GitHub ✅");
 }
-window._login = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
+window._login  = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
 window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadge("status-auth", false); alert("Déconnecté."); };
 
-/* ========= SAVE (headers autorisés UNIQUEMENT) ========= */
+/* ========= SAVE (headers GitHub autorisés) ========= */
 async function saveToGitHubMerged(newRow){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
   const headers = {
@@ -170,7 +182,7 @@ async function saveToGitHubMerged(newRow){
   else if (get.ok){ const j=await get.json(); sha=j.sha; remoteRows=parseCsvFlexible(decodeB64(j.content)); }
   else { const t=await get.text(); alert(`Lecture KO: ${get.status}\n${t}`); throw new Error("load failed"); }
 
-  // merge append-only
+  // merge append-only (évite doublons Année+Numéro+Titre)
   const key=r=>[r["Année"],r["Numéro"],r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
   const seen=new Set(remoteRows.map(key));
   const merged=[...remoteRows];
@@ -188,9 +200,10 @@ async function saveToGitHubMerged(newRow){
   bodyTxt = await put.text();
   if (!put.ok){ alert(`Commit KO: ${put.status}\n${bodyTxt.slice(0,500)}`); throw new Error("put failed"); }
 
-  // succès: afficher URL du commit
+  // succès → URL du commit
   let commitUrl=""; try{ const j=JSON.parse(bodyTxt); commitUrl=j?.commit?.html_url||""; }catch{}
-  await probePublicAndLoad();
+  // relecture publique + reset filtres
+  setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1200);
   alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
   if (commitUrl) console.log("Commit:", commitUrl);
 }
@@ -206,31 +219,33 @@ async function initCsvIfMissing(){
   const body = { message:"init: create data/articles.csv", content: encodeB64(HEADERS.join(",")+"\n"), branch:GITHUB_BRANCH };
   const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
   if (!put.ok){ const t=await put.text(); alert(`Création KO: ${put.status}\n${t}`); return; }
-  alert("CSV initialisé ✅"); await probePublicAndLoad();
+  alert("CSV initialisé ✅"); await probePublicAndLoad(); resetFiltersUI(); render();
 }
 
-/* ========= HANDLERS GLOBAUX ========= */
+/* ========= HANDLERS GLOBAUX (onclick HTML) ========= */
 window._save = async ()=>{ try{
   if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
-  await saveToGitHubMerged(ARTICLES[0]);
+  await saveToGitHubMerged(ARTICLES[0]); // déclenche le merge/commit
 } catch(e){ alert("Save: "+(e?.message||e)); } };
 
 window._init = async ()=>{ try{ await initCsvIfMissing(); }catch(e){ alert("Init: "+e.message); } };
 
-window._add = async ()=>{ try{
+window._add = async (ev)=>{ try{
+  if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
   const get=id=>document.getElementById(id)?.value?.trim()||"";
   const row={ "Année":get("add-annee"), "Numéro":get("add-numero"), "Titre":get("add-titre"),
               "Page(s)":get("add-pages"), "Auteur(s)":get("add-auteurs"), "Ville(s)":get("add-villes"),
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
   ARTICLES.unshift(row); currentPage=1; render();
-  if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
+  if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer dans GitHub, cliquez 🔐 puis réessayez."); return; }
   await saveToGitHubMerged(row);
 } catch(e){ alert("Add: "+(e?.message||e)); } };
 
 /* ========= EVENTS ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
   await probePublicAndLoad();
+
   document.getElementById("prev")?.addEventListener("click", ()=>{ currentPage=Math.max(1,currentPage-1); render(); });
   document.getElementById("next")?.addEventListener("click", ()=>{ currentPage=currentPage+1; render(); });
   document.getElementById("filter-annee")?.addEventListener("change", ()=>{ document.getElementById("filter-numero").value=""; currentPage=1; render(); });
@@ -248,45 +263,3 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
   setBadge("status-auth", !!GHTOKEN);
 });
-// Handler robuste pour le bouton "Ajouter et enregistrer"
-window._add = async (ev) => {
-  try {
-    // si jamais c'est dans un form par erreur, on bloque la soumission
-    if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
-
-    // 1) lire les champs (IDs EXACTS)
-    const get = id => (document.getElementById(id)?.value || "").trim();
-    const row = {
-      "Année":    get("add-annee"),
-      "Numéro":   get("add-numero"),
-      "Titre":    get("add-titre"),
-      "Page(s)":  get("add-pages"),
-      "Auteur(s)":get("add-auteurs"),
-      "Ville(s)": get("add-villes"),
-      "Theme(s)": get("add-themes"),
-      "Epoque":   get("add-epoque"),
-    };
-
-    // 2) validations minimales
-    if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
-
-    // 3) affichage immédiat dans le tableau
-    if (!Array.isArray(ARTICLES)) window.ARTICLES = [];
-    ARTICLES.unshift(row);
-    if (typeof render === "function") render();
-
-    // 4) si pas connecté, on s'arrête après l'ajout local
-    if (!GHTOKEN) {
-      alert("Ajout local OK ✅\nPour enregistrer dans GitHub : cliquez d’abord sur 🔐 puis réessayez.");
-      return;
-    }
-
-    // 5) enregistrement GitHub
-    console.log("[ADD] saving row:", row);
-    await saveToGitHubMerged(row);   // ← utilise ta fonction de sauvegarde existante
-    alert("Article ajouté et enregistré ✅");
-  } catch (e) {
-    console.error("[ADD] error", e);
-    alert("Erreur à l'ajout : " + (e?.message || e));
-  }
-};
