@@ -1,7 +1,7 @@
 /* ========= CONFIG ========= */
 const GITHUB_OWNER  = "mich59139";
-const GITHUB_REPO   = "nouveau";          // ← nouveau nom
-const GITHUB_BRANCH = "main";             // (confirme que c’est bien la branche)
+const GITHUB_REPO   = "nouveau";
+const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const CSV_URL_BASE  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
@@ -54,12 +54,7 @@ function parseCsvFlexible(text) {
 function splitMulti(value) {
   const raw = norm(value);
   if (!raw) return [];
-  return raw
-    .split(/[;,/|·•]/)
-    .map(v => v.replace(/^\W+|\W+$/g,""))
-    .map(v => v.replace(/\s*-\s*/g,"-"))
-    .map(v => v.replace(/\s{2,}/g," ").trim())
-    .filter(v => v && v !== "i" && v.length >= 2);
+  return raw.split(/[;,/|·•]/).map(v => v.replace(/^\W+|\W+$/g,"")).map(v => v.replace(/\s*-\s*/g,"-")).map(v => v.replace(/\s{2,}/g," ").trim()).filter(v => v && v !== "i" && v.length >= 2);
 }
 function uniquePretty(list) {
   const map = new Map();
@@ -94,28 +89,22 @@ async function verifyGithubTarget() {
   const brUrl   = `${repoUrl}/branches/${encodeURIComponent(GITHUB_BRANCH)}`;
   const fileUrl = `${repoUrl}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
 
-  let msg = [];
   const r1 = await fetch(repoUrl, { headers: H });
   setBadge("status-repo", r1.ok);
   if (!r1.ok) { setStatusMsg(`Repo introuvable : <code>${GITHUB_OWNER}/${GITHUB_REPO}</code>.`); return; }
-  const j1 = await r1.json();
-  msg.push(`Repo : <code>${j1.full_name}</code>`);
 
   const r2 = await fetch(brUrl, { headers: H });
   setBadge("status-branch", r2.ok);
   if (!r2.ok) { setStatusMsg(`Branche introuvable : <code>${GITHUB_BRANCH}</code>. Crée un premier commit (README).`); return; }
-  msg.push(`Branche : <code>${GITHUB_BRANCH}</code> ok`);
 
   const r3 = await fetch(fileUrl, { headers: H });
+  setBadge("status-file", r3.ok || r3.status===404);
   if (r3.status === 404) {
-    setBadge("status-file", false);
-    setStatusMsg(`Fichier manquant : <code>${CSV_PATH}</code>. Crée-le dans GitHub (au moins l'entête).`);
+    setStatusMsg(`Fichier manquant : <code>${CSV_PATH}</code>. Crée-le dans le dépôt (au moins l’entête).`);
     return;
   }
-  setBadge("status-file", r3.ok);
   if (!r3.ok) { setStatusMsg(`Erreur d’accès fichier (${r3.status}).`); return; }
-  msg.push(`Fichier : <code>${CSV_PATH}</code> ok`);
-  setStatusMsg(msg.join(" · "));
+  setStatusMsg(`Cible OK : <code>${GITHUB_OWNER}/${GITHUB_REPO}@${GITHUB_BRANCH} → ${CSV_PATH}</code>`);
 }
 
 /* ========= CHARGEMENT ========= */
@@ -133,7 +122,9 @@ async function reloadCsv(reset=false) {
     const lim=document.getElementById("limit"); if (lim) lim.value="50";
     currentPage=1;
   }
-  populateFilters(); populateDatalists(); render();
+  populateFilters();
+  populateDatalists();
+  render();
 }
 async function loadCsvFromApi() {
   if (!GHTOKEN) return;
@@ -144,10 +135,11 @@ async function loadCsvFromApi() {
   const j = await r.json();
   const csv = decodeURIComponent(escape(atob(j.content)));
   articles = parseCsvFlexible(csv);
-  populateFilters(); populateDatalists(); currentPage = 1; render();
+  populateFilters(); populateDatalists();
+  currentPage = 1; render();
 }
 
-/* ========= UI ========= */
+/* ========= POPULATE UI ========= */
 function populateFilters() {
   const an = document.getElementById("filter-annee");
   const nu = document.getElementById("filter-numero");
@@ -156,7 +148,10 @@ function populateFilters() {
   nu.innerHTML = `<option value="">(tous)</option>`   + uniqueSorted(articles.map(a=>a["Numéro"])).map(v=>`<option>${v}</option>`).join("");
 }
 function populateDatalists() {
-  const fill = (id, items) => { const el = document.getElementById(id); if (el) el.innerHTML = uniquePretty(items).map(v=>`<option value="${v}">`).join(""); };
+  const fill = (id, items) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = uniquePretty(items).map(v=>`<option value="${v}">`).join("");
+  };
   const auteurs = articles.flatMap(a => splitMulti(a["Auteur(s)"]));
   const themes  = articles.flatMap(a => splitMulti(a["Theme(s)"]));
   const villes  = articles.flatMap(a => splitMulti(a["Ville(s)"]));
@@ -167,6 +162,8 @@ function populateDatalists() {
   fill("dl-themes",  themes);
   fill("dl-epoques", articles.map(a=>a["Epoque"]));
 }
+
+/* ========= FILTRES / TRI / PAGINATION / RENDER ========= */
 function applyAllFilters(data){
   const term   = (document.getElementById("search")?.value || "").toLowerCase();
   const annee  = document.getElementById("filter-annee")?.value || "";
@@ -192,12 +189,14 @@ function render(){
   const container = document.getElementById("articles");
   const all = applyAllFilters(articles);
   if (!all.length){ container.innerHTML = "<p>Aucun article trouvé.</p>"; return; }
+
   const limitSel = document.getElementById("limit");
   const limitVal = limitSel ? limitSel.value : "50";
   rowsPerPage = (limitVal==="all") ? all.length : parseInt(limitVal,10);
   const start = (currentPage-1)*rowsPerPage;
   const page = all.slice(start, start+rowsPerPage);
   const arrow = c => currentSort.col===c ? (currentSort.dir==="asc"?"▲":"▼") : "";
+
   let html = `<table><thead><tr>
     <th onclick="sortBy('Année')">Année ${arrow('Année')}</th>
     <th onclick="sortBy('Numéro')">Numéro ${arrow('Numéro')}</th>
@@ -206,6 +205,7 @@ function render(){
     <th onclick="sortBy('Theme(s)')">Thème(s) ${arrow('Theme(s)')}</th>
     <th onclick="sortBy('Epoque')">Période ${arrow('Epoque')}</th>
   </tr></thead><tbody>`;
+
   html += page.map(r=>`
     <tr>
       <td>${r["Année"]||""}</td>
@@ -215,6 +215,7 @@ function render(){
       <td>${r["Theme(s)"]||""}</td>
       <td>${r["Epoque"]||""}</td>
     </tr>`).join("");
+
   const maxPage = Math.max(1, Math.ceil(all.length/rowsPerPage));
   html += `</tbody></table>
     <div class="pager">
@@ -225,7 +226,7 @@ function render(){
   container.innerHTML = html;
 }
 
-/* ========= FORMULAIRE ========= */
+/* ========= FORMULAIRE (AJOUT) ========= */
 function addFromForm() {
   const $ = n => document.querySelector(`#form-container [name="${n}"]`);
   const row = {
@@ -238,10 +239,14 @@ function addFromForm() {
     "Theme(s)":  splitMulti($("Theme(s)")?.value).join("; "),
     "Epoque":    norm($("Epoque")?.value),
   };
-  if (articles.some(r => rowKey(r) === rowKey(row))) { alert("Doublon : même Année + Numéro + Titre."); return; }
+  if (articles.some(r => rowKey(r) === rowKey(row))) {
+    alert("Doublon détecté : même Année + Numéro + Titre.");
+    return;
+  }
   articles.push(row);
   pendingAdds.push(row);
-  currentPage = 1; render();
+  currentPage = 1;
+  render();
 }
 
 /* ========= CSV ========= */
@@ -296,7 +301,10 @@ async function saveToGitHubMerged() {
   if (APPEND_ONLY) {
     const remoteKeys = new Set(remoteRows.map(r => rowKey(r)));
     const newAdds = (pendingAdds||[]).filter(r => !remoteKeys.has(rowKey(r)));
-    if (!newAdds.length && (!articles || !articles.length)) { alert("Rien de nouveau à enregistrer."); return; }
+    if (!newAdds.length && (!articles || !articles.length)) {
+      alert("Rien de nouveau à enregistrer.");
+      return;
+    }
     toWriteRows = remoteRows.concat(newAdds.length ? newAdds : []);
   } else {
     const key = r => [r["Titre"], r["Numéro"], r["Année"]].map(v=>v||"").join("¦");
@@ -304,22 +312,22 @@ async function saveToGitHubMerged() {
     for (const r of articles) map.set(key(r), r);
     toWriteRows = Array.from(map.values());
   }
-
   const csvMerged = buildCsvFromArticles(toWriteRows);
 
   let attempts = 0, put;
   while (attempts < 3) {
-    const body = { message: sha ? "maj UI (update)" : "maj UI (create)",
-                   content: toBase64(csvMerged),
-                   branch: GITHUB_BRANCH, ...(sha ? { sha } : {}) };
+    const body = { message: sha ? "maj UI (update)" : "maj UI (create)", content: toBase64(csvMerged), branch: GITHUB_BRANCH, ...(sha ? { sha } : {}) };
     put = await fetch(contentsUrl, { method: "PUT", headers, body: JSON.stringify(body) });
     if (put.status !== 409) break;
     const latest = await getLatest();
     sha = latest.sha;
     attempts++;
   }
-
-  if (!put.ok) { const txt = await put.text(); alert(`Échec du commit : ${put.status}\n${txt}`); return; }
+  if (!put.ok) {
+    const txt = await put.text();
+    alert(`Échec du commit : ${put.status}\n${txt}`);
+    return;
+  }
 
   try { await loadCsvFromApi(); } catch {}
   setTimeout(() => { reloadCsv(true).catch(()=>{}); }, 5000);
@@ -344,21 +352,29 @@ function wireUI(){
     await githubLoginInline();
     await verifyGithubTarget();
     setBadge("status-auth", !!GHTOKEN);
-    setBadge("status-repo", true);
   });
   document.getElementById("logout-btn")?.addEventListener("click", ()=>{
-    setToken(null);
-    setBadge("status-auth", false);
+    setToken(null); setBadge("status-auth", false);
     alert("Token oublié (session nettoyée).");
     const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Se connecter GitHub";
   });
   document.getElementById("save-btn")?.addEventListener("click", saveToGitHubMerged);
-  document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{ addFromForm(); await saveToGitHubMerged(); });
+
+  document.getElementById("save-in-drawer")?.addEventListener("click", async ()=>{
+    addFromForm();
+    await saveToGitHubMerged();
+  });
 }
+
+/* ========= INIT ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
   if (GHTOKEN){ const b=document.getElementById("login-btn"); if (b) b.textContent="🔐 Connecté (session)"; setBadge("status-auth", true); }
-  try { await reloadCsv(true); wireUI(); } catch (e) {
-    console.error(e); const c=document.getElementById("articles");
-    if (c) c.innerHTML = `<p style="color:#b00">Erreur de chargement : ${e}</p>`;
+  try {
+    await reloadCsv(true);
+    wireUI();
+  } catch (e) {
+    console.error(e);
+    const c=document.getElementById("articles");
+    if (c) c.innerHTML = `<p class="error">Erreur de chargement : ${e}</p>`;
   }
 });
