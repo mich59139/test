@@ -3,7 +3,7 @@ const GITHUB_OWNER  = "mich59139";
 const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
-// Lecture via RAW uniquement (fiable, pas de 403 API)
+// Lecture via RAW (pas d’API → pas de 403)
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
 let GHTOKEN  = localStorage.getItem("ghtoken") || null;
@@ -19,8 +19,9 @@ const decodeB64 = b64 => decodeURIComponent(escape(atob(b64)));
 const encodeB64 = str => btoa(unescape(encodeURIComponent(str)));
 const setBadge = (id, ok, extra="") => { const el=document.getElementById(id); if(!el)return; el.textContent = ok?`✅${extra}`:`❌`; el.style.color = ok? "#16a34a":"#dc2626"; };
 const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).localeCompare(""+y,"fr"));
+const sleep = ms => new Promise(res => setTimeout(res, ms));
 
-/* ========= PARSEUR ROBUSTE (accents + ; ou ,) ========= */
+/* ========= PARSEUR ROBUSTE ========= */
 function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 function normalizeHeader(h) {
   const t = stripAccents((h||"").trim()).replace(/\s+/g," ").replace(/[’']/g,"'").toLowerCase();
@@ -34,27 +35,16 @@ function normalizeHeader(h) {
   if (t==="epoque" || t==="époque" || t==="periode" || t==="période") return "Epoque";
   return (h||"").trim();
 }
-function detectDelimiter(text){
-  const first = (text.split(/\r?\n/)[0]||"");
-  const c = (first.match(/,/g)||[]).length;
-  const s = (first.match(/;/g)||[]).length;
-  return s>c ? ";" : ",";
-}
 function parseCsvFlexible(text) {
   if (!text) return [];
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
+  if (!text.endsWith("\n")) text += "\n";                  // ne pas perdre la dernière ligne
 
-  // Enlever un BOM éventuel
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-
-  // IMPORTANT: Papa gère mieux la dernière ligne si le texte finit par "\n"
-  if (!text.endsWith("\n")) text += "\n";
-
-  // Autodétection du séparateur et des fins de lignes
   const res = Papa.parse(text, {
     header: true,
-    skipEmptyLines: true,      // pas "greedy" ici
-    delimiter: "",             // auto ("," ";" ou "\t")
-    newline: "",               // auto (\r\n, \n, \r)
+    skipEmptyLines: true,
+    delimiter: "",            // auto ("," ";" "\t")
+    newline: "",              // auto
     transformHeader: normalizeHeader
   });
 
@@ -69,9 +59,11 @@ function parseCsvFlexible(text) {
     "Epoque":    row["Epoque"]   ?? row["Période"] ?? row["Periode"] ?? ""
   }));
 
-  console.log(`[RAW] lignes: ${rows.length}`, { firstRow: rows[0], lastRow: rows.at(-1) });
-  return rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
+  const cleaned = rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
+  console.log(`[RAW] lignes: ${cleaned.length}`, { firstRow: cleaned[0], lastRow: cleaned.at(-1) });
+  return cleaned;
 }
+
 /* ========= RESET FILTRES ========= */
 function resetFiltersUI() {
   const fA = document.getElementById("filter-annee");
@@ -85,16 +77,13 @@ function resetFiltersUI() {
   currentPage = 1;
 }
 
-/* ========= LECTURE PUBLIQUE (RAW UNIQUEMENT) ========= */
+/* ========= LECTURE PUBLIQUE (RAW) ========= */
 async function probePublicAndLoad() {
   try {
-    const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache:"no-store" });
+    const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache: "no-store" });
     if (!r.ok) {
-      document.getElementById("articles-body").innerHTML =
-        `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
-      setBadge("status-repo", false);
-      setBadge("status-branch", false);
-      setBadge("status-file", false);
+      document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Erreur RAW: ${r.status}</td></tr>`;
+      setBadge("status-repo", false); setBadge("status-branch", false); setBadge("status-file", false);
       return;
     }
     const text = await r.text();
@@ -107,11 +96,8 @@ async function probePublicAndLoad() {
     setBadge("status-file", true, ` (${ARTICLES.length})`);
   } catch (e) {
     console.error(e);
-    document.getElementById("articles-body").innerHTML =
-      `<tr><td colspan="8">Impossible de charger les données.</td></tr>`;
-    setBadge("status-repo", false);
-    setBadge("status-branch", false);
-    setBadge("status-file", false);
+    document.getElementById("articles-body").innerHTML = `<tr><td colspan="8">Impossible de charger les données.</td></tr>`;
+    setBadge("status-repo", false); setBadge("status-branch", false); setBadge("status-file", false);
   }
 }
 window._reloadRaw = async ()=>{ await probePublicAndLoad(); };
@@ -187,77 +173,74 @@ async function githubLoginInline(){
 window._login  = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
 window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadge("status-auth", false); alert("Déconnecté."); };
 
-/* ========= SAVE (API écriture uniquement) ========= */
+/* ========= SAVE (anti‑409 retry+merge) ========= */
 async function saveToGitHubMerged(newRow){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
+
   const headers = {
     Authorization: `token ${GHTOKEN}`,
     "Accept": "application/vnd.github+json",
     "Content-Type": "application/json"
   };
-  const url   = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
-  const branch= GITHUB_BRANCH;
+  const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
+  const branch = GITHUB_BRANCH;
 
-  // clé pour dé-doublonner (Année+Numéro+Titre)
-  const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
-
-  // petite pause
-  const sleep = ms => new Promise(res=>setTimeout(res, ms));
+  // clé anti‑doublon (Année+Numéro+Titre)
+  const key = r => [r["Année"], r["Numéro"], r["Titre"]]
+                    .map(v => (v||"").toLowerCase().trim())
+                    .join("¦");
 
   for (let attempt = 1; attempt <= 5; attempt++) {
-    // 1) Lire la dernière version (sha + contenu)
+    // 1) Lire la DERNIÈRE version (sha + contenu)
     let sha = null, remoteRows = [];
     const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
 
     if (get.status === 404) {
-      // fichier inexistant → on crée à partir de la ligne locale
       remoteRows = [];
     } else if (get.ok) {
-      const j = await get.json();
-      sha = j.sha;
-      remoteRows = parseCsvFlexible(decodeURIComponent(escape(atob(j.content))));
+      const j   = await get.json();
+      sha       = j.sha;
+      const csv = decodeB64(j.content);
+      remoteRows = parseCsvFlexible(csv);
     } else {
       const body = await get.text();
       throw new Error(`GET ${get.status}\n${body}`);
     }
 
-    // 2) Re-fusionner à CHAQUE tentative
-    const seen = new Set(remoteRows.map(key));
+    // 2) Re‑fusionner à CHAQUE tentative
+    const seen   = new Set(remoteRows.map(key));
     const merged = [...remoteRows];
     if (newRow && !seen.has(key(newRow))) merged.push(newRow);
 
-    // 3) Tenter le PUT avec le sha courant
+    // 3) PUT avec le sha courant
     const body = {
       message: sha ? "maj UI (merge append)" : "init + ajout",
-      content: btoa(unescape(encodeURIComponent(toCSV(merged)))),
+      content: encodeB64(toCSV(merged)),
       branch,
       ...(sha ? { sha } : {})
     };
+
     const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
 
     if (put.ok) {
-      // succès → recharger l’affichage RAW
-      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
       const txt = await put.text(); let commitUrl="";
       try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
+      setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
       alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
       return;
     }
 
     if (put.status === 409) {
-      // Conflit → attendre un peu et recommencer le cycle (GET→merge→PUT)
       const wait = 300 * attempt; // backoff
       console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
       await sleep(wait);
-      continue;
+      continue; // relance la boucle (nouveau GET → merge → PUT)
     }
 
-    // autre erreur que 409
     const errTxt = await put.text();
     throw new Error(`PUT ${put.status}\n${errTxt}`);
   }
 
-  // Si on sort de la boucle
   throw new Error("Conflit 409 persistant après 5 tentatives.");
 }
 
@@ -306,13 +289,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("limit")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("search")?.addEventListener("input", ()=>{ currentPage=1; render(); });
 
-  document.querySelectorAll("th[data-col]").forEach(th=>{
-    th.addEventListener("click", ()=>{
-      const col=th.getAttribute("data-col");
-      if (sortCol===col) sortDir = (sortDir==="asc")?"desc":"asc"; else { sortCol=col; sortDir="asc"; }
-      currentPage=1; render();
-    });
-  });
-
+  wireSorting();
   setBadge("status-auth", !!GHTOKEN);
 });
