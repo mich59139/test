@@ -17,7 +17,7 @@ body{
 
 /* Conteneur centré + largeur max */
 .shell{
-  max-width:1400px; /* élargi un peu */
+  max-width:1400px;
   margin:0 auto;
   padding:0 8px;
 }
@@ -152,13 +152,26 @@ tr.editing .cell-input{
 .modal .grid .full{ grid-column: 1/-1; }
 
 .modal label{ display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.modal label span{
+  font-weight: 600;
+  color: #111827;
+}
+.modal label.req span::after{
+  content: " *";
+  color: #dc2626;
+  font-weight: 700;
+}
 .modal input{
-  padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+  font-size: 16px;
+  padding: 12px 12px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
   background: #fff; color: var(--fg);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-
-.modal-footer button{
-  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); cursor: pointer;
+.modal input::placeholder{ color: #9ca3af; }
+.modal input:focus{
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.25);
 }
-.modal-footer .secondary{ background: #fff; }
-.modal-footer .primary{ background: var(--accent); color: #fff; border-color: #1d4ed8; }

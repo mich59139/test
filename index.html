@@ -31,7 +31,6 @@
       <button id="draft-saveall" onclick="window._saveAll?.()" disabled>💾 Enregistrer tout</button>
       <button onclick="window._undo?.()" disabled id="btn-undo">↩️ Annuler</button>
       <button onclick="window._redo?.()" disabled id="btn-redo">↪️ Rétablir</button>
-      <button onclick="window._snapshot?.()">📸 Snapshot</button>
 
       <!-- Ouvrir le modal d’ajout -->
       <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
@@ -101,15 +100,15 @@
 
       <div class="modal-body">
         <div class="grid">
-          <label>
+          <label class="req">
             <span>Année</span>
             <input type="text" id="add-annee" placeholder="Année" list="dl-annee">
           </label>
-          <label>
+          <label class="req">
             <span>Numéro</span>
             <input type="text" id="add-numero" placeholder="Numéro" list="dl-numero">
           </label>
-          <label class="full">
+          <label class="full req">
             <span>Titre</span>
             <input type="text" id="add-titre" placeholder="Titre" required>
           </label>
