@@ -213,3 +213,22 @@ tr.editing .cell-input{
 .brand-name { font-weight:600; font-size:1.05rem; line-height:1.2; }
 .brand-sub { font-size:1.6rem; line-height:1.2; margin:0; }
 @media (max-width:600px){ .brand-logo{ max-height:44px } .brand-sub{ font-size:1.3rem } }
+
+
+/* === Logo white background === */
+.brand-logo{
+  background:#fff;
+  padding:6px;
+  border-radius:10px;
+  box-shadow:0 1px 2px rgba(0,0,0,.08);
+}
+@media (max-width:600px){
+  .brand-logo{ padding:4px; border-radius:8px; }
+}
+
+
+/* === Reduce logo by half === */
+.brand-logo { max-height: 28px; }
+@media (max-width: 600px){
+  .brand-logo { max-height: 22px; }
+}
