@@ -4,6 +4,7 @@ const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
+let AUTO_SAVE_SILENT = false;
 
 const SNAPSHOT_ENABLED = false;
 
@@ -452,7 +453,7 @@ window._inlineSave = async () => {
   EDIT_INLINE_IDX = null; EDIT_INLINE_DRAFT = null;
   render(); populateDatalists(); updateUndoRedoButtons();
 
-  if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+  if (!GHTOKEN){ if (!AUTO_SAVE_SILENT) alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
   if (DRAFT_MODE){ markDirty(true); return; }
   try {
     showLoading(true);
@@ -672,7 +673,3 @@ function rebuildNumeroOptions(selectedYear){
   if (current && (!selectedYear || uniq.includes(current))) nu.value = current;
   else nu.value = "";
 }
-
-
-// Export pour le bouton "Créer data/articles.csv"
-window._init = initCsvIfMissing;
