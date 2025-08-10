@@ -4,7 +4,6 @@ const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
-let AUTO_SAVE_SILENT = false;
 
 const SNAPSHOT_ENABLED = false;
 
@@ -256,22 +255,24 @@ function render(){
     tb.innerHTML = page.map(r=>{
       const editing = EDIT_INLINE_IDX === r.__idx;
       if (!editing) {
+        
         return `
-          <tr ondblclick="window._inlineEdit?.(${r.__idx})">
-            <td>${r["Année"]||""}</td>
-            <td>${r["Numéro"]||""}</td>
-            <td>${r["Titre"]||""}</td>
-            <td>${r["Page(s)"]||""}</td>
-            <td>${r["Auteur(s)"]||""}</td>
-            <td>${r["Ville(s)"]||""}</td>
-            <td>${r["Theme(s)"]||""}</td>
-            <td>${r["Epoque"]||""}</td>
-            <td class="actions">
-              <button class="edit" onclick="window._inlineEdit?.(${r.__idx})">✏️</button>
-              <button class="del"  onclick="window._delete?.(${r.__idx})">🗑️</button>
+          <tr class="row" ondblclick="window._inlineEdit?.(${r.__idx})" onclick="window._editRow?.(${r.__idx})">
+            <td data-label="Année" class="col-annee">${r["Année"]||""}</td>
+            <td data-label="Numéro" class="col-numero">${r["Numéro"]||""}</td>
+            <td data-label="Titre" class="col-titre">${r["Titre"]||""}</td>
+            <td data-label="Page(s)" class="col-pages">${r["Page(s)"]||""}</td>
+            <td data-label="Auteur(s)" class="col-auteurs">${r["Auteur(s)"]||""}</td>
+            <td data-label="Ville(s)" class="col-villes">${r["Ville(s)"]||""}</td>
+            <td data-label="Thème(s)" class="col-themes">${r["Theme(s)"]||""}</td>
+            <td data-label="Période" class="col-epoque">${r["Epoque"]||""}</td>
+            <td class="actions" data-label="Actions">
+              <button class="edit" onclick="window._inlineEdit?.($${r.__idx})" aria-label="Modifier la ligne">✎</button>
+              <button class="del"  onclick="window._deleteRow?.($${r.__idx})" aria-label="Supprimer la ligne">🗑</button>
             </td>
           </tr>
         `;
+    
       } else {
         const d = EDIT_INLINE_DRAFT;
         const input = (id,val,list="") =>
@@ -309,8 +310,6 @@ async function githubLoginInline(){
   localStorage.setItem("ghtoken", GHTOKEN);
   setBadge("status-auth", true);
   alert("Connecté à GitHub ✅");
-
-  try { await saveAllRowsToGithub(ARTICLES, "commit auto après connexion"); alert("Connecté à GitHub ✅\nModifications locales enregistrées."); } catch(e) { console.warn(e); alert("Connecté à GitHub ✅"); }
 }
 window._login  = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
 window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadge("status-auth", false); alert("Déconnecté."); };
@@ -455,7 +454,7 @@ window._inlineSave = async () => {
   EDIT_INLINE_IDX = null; EDIT_INLINE_DRAFT = null;
   render(); populateDatalists(); updateUndoRedoButtons();
 
-  if (!GHTOKEN){ if (!AUTO_SAVE_SILENT) alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+  if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
   if (DRAFT_MODE){ markDirty(true); return; }
   try {
     showLoading(true);
@@ -482,14 +481,14 @@ window._delete = async (idx) => {
 
     // 2) Pas de token => local uniquement
     if (!GHTOKEN){
-      alert("Supprimé localement. Cliquez 🔐 pour enregistrer maintenant.");
+      alert("Supprimé localement. Cliquez 🔐 puis « Enregistrer tout » pour committer.");
       return;
     }
 
     // 3) Mode brouillon => marquer comme modifié, pas de commit immédiat
     if (DRAFT_MODE){
       markDirty(true);
-      alert("Suppression stockée en brouillon. Cliquez 🔐 pour enregistrer maintenant.");
+      alert("Suppression stockée en brouillon. Cliquez « Enregistrer tout » pour committer.");
       return;
     }
 
@@ -521,8 +520,8 @@ window._add = async (ev)=>{ try{
   pushUndo();
   ARTICLES.unshift(row); currentPage=1; render(); populateDatalists(); updateUndoRedoButtons();
 
-  if (!GHTOKEN){ alert("Ajout local OK. Cliquez 🔐 pour enregistrer maintenant."); return; }
-  if (DRAFT_MODE){ markDirty(true); alert("Ajout stocké en brouillon. Cliquez 🔐 pour enregistrer maintenant."); return; }
+  if (!GHTOKEN){ alert("Ajout local OK. Cliquez 🔐 puis « Enregistrer tout » pour committer."); return; }
+  if (DRAFT_MODE){ markDirty(true); alert("Ajout stocké en brouillon. Cliquez « Enregistrer tout » pour committer."); return; }
 
   const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
   try { await saveToGitHubMerged(row); }
@@ -540,7 +539,7 @@ window._toggleDraft = ()=>{
   const saveAllBtn = document.getElementById("draft-saveall");
   if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
   alert(DRAFT_MODE
-    ? "Mode brouillon activé : vos changements restent locaux. Cliquez 🔐 pour enregistrer maintenant."
+    ? "Mode brouillon activé : vos changements restent locaux. Cliquez « Enregistrer tout » pour committer."
     : "Mode brouillon désactivé : les actions peuvent committer immédiatement.");
 };
 

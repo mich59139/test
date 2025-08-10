@@ -206,29 +206,37 @@ tr.editing .cell-input{
 .help-body p{ margin:8px 0 }
 .help-footer .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
 
-/* ======= Branding ======= */
-.brand { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
-.brand-logo { max-height:56px; height:auto; width:auto; border-radius:8px; }
-.brand-text { display:flex; flex-direction:column; }
-.brand-name { font-weight:600; font-size:1.05rem; line-height:1.2; }
-.brand-sub { font-size:1.6rem; line-height:1.2; margin:0; }
-@media (max-width:600px){ .brand-logo{ max-height:44px } .brand-sub{ font-size:1.3rem } }
 
-
-/* === Logo white background === */
-.brand-logo{
-  background:#fff;
-  padding:6px;
-  border-radius:10px;
-  box-shadow:0 1px 2px rgba(0,0,0,.08);
+/* ===== Accessibilité & Mobile ===== */
+:root{ --tap: 44px; }
+button, select, input[type="text"]{ min-height: var(--tap); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible{
+  outline: 2px solid #1976d2; outline-offset: 2px;
 }
-@media (max-width:600px){
-  .brand-logo{ padding:4px; border-radius:8px; }
+/* Responsive table as cards */
+table.responsive{ width:100%; border-collapse: collapse; }
+table.responsive th, table.responsive td{ padding: 8px 10px; vertical-align: top; }
+@media (max-width: 800px){
+  table.responsive thead{
+    border:0; clip:rect(0 0 0 0); height:1px; margin:-1px; overflow:hidden; padding:0; position:absolute; width:1px;
+  }
+  table.responsive tr{
+    display:block; border:1px solid #e3e3e3; border-radius:12px; margin-bottom:10px; padding:8px 10px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  table.responsive td{
+    display:grid; grid-template-columns: 40% 1fr; gap:8px;
+    padding:6px 0;
+  }
+  table.responsive td::before{
+    content: attr(data-label);
+    font-weight:600; opacity:.85;
+  }
+  table.responsive td.actions{
+    display:flex; gap:10px; align-items:center;
+  }
+  .filters.panel, .controls.panel, .badges.panel{ display:flex; flex-wrap:wrap; gap:8px; }
+  .filters.panel label, .controls.panel button{ flex: 1 1 calc(50% - 8px); }
 }
-
-
-/* === Reduce logo by half === */
-.brand-logo { max-height: 28px; }
-@media (max-width: 600px){
-  .brand-logo { max-height: 22px; }
-}
+/* Ensure long titles wrap */
+.col-titre{ word-break: break-word; }

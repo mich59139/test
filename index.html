@@ -8,20 +8,11 @@
 </head>
 <body>
   <div class="shell">
-    
-<div class="brand">
-  <img src="assets/logo-ahpv.png" alt="Amis de l’Histoire du Pays Vizillois" class="brand-logo"/>
-  <div class="brand-text">
-    <div class="brand-name">Amis de l’Histoire du Pays Vizillois</div>
-    <h1 class="brand-sub">Catalogue des Articles</h1>
-  </div>
-</div>
-
+    <h1>Catalogue des Articles</h1>
 
     <!-- Statuts -->
     <div class="badges panel">
-      Auth: <button id="login-btn" onclick="window._login?.()">🔐 Connexion</button>
-<span id="status-auth">❌</span>
+      Auth: <span id="status-auth">❌</span>
       Repo: <span id="status-repo">❌</span>
       Branche: <span id="status-branch">❌</span>
       Fichier: <span id="status-file">❌</span>
@@ -69,7 +60,7 @@
     <!-- Tableau -->
     <div id="articles" class="panel">
       <div class="table-wrap">
-        <table>
+        <table class="responsive">
           <thead>
             <tr>
               <th data-col="Année">Année</th>
@@ -88,14 +79,14 @@
       </div>
       <div class="pager">
         <button id="prev">◀ Précédent</button>
-        <span id="pageinfo"></span>
+        <span id="pageinfo" aria-live="polite"></span>
         <button id="next">Suivant ▶</button>
       </div>
     </div>
   </div>
 
   <!-- Loader -->
-  <div id="loading" class="loading hidden">
+  <div id="loading" class="loading hidden" role="status" aria-live="assertive">
     <div class="spinner"></div>
     <div>Sauvegarde / rechargement…</div>
   </div>
