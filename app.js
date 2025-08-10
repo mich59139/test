@@ -672,3 +672,7 @@ function rebuildNumeroOptions(selectedYear){
   if (current && (!selectedYear || uniq.includes(current))) nu.value = current;
   else nu.value = "";
 }
+
+
+// Export pour le bouton "Créer data/articles.csv"
+window._init = initCsvIfMissing;
