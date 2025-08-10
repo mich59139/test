@@ -13,6 +13,12 @@ let sortCol = null, sortDir = "asc";
 let EDIT_INLINE_IDX = null;     // index global en édition inline
 let EDIT_INLINE_DRAFT = null;   // copie de travail
 
+// Mode brouillon / undo / redo
+let DRAFT_MODE = false;         // true: pas de commit immédiat
+let PENDING_DIRTY = false;      // modifs locales en attente
+let UNDO_STACK = [];            // snapshots d'états
+let REDO_STACK = [];            // redo
+
 /* ========= UTILS ========= */
 const HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
 const esc = v => { const s=(v??"").toString(); return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s; };
@@ -24,6 +30,29 @@ const uniqSorted = a => [...new Set(a.filter(Boolean))].sort((x,y)=>(""+x).local
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 const showLoading = (on=true) => { const el=document.getElementById("loading"); if (el) el.classList.toggle("hidden", !on); };
 const splitMulti = v => (v||"").split(/[;,]\s*/g).map(s=>s.trim()).filter(Boolean);
+
+/* ========= UNDO/REDO & DRAFT ========= */
+function pushUndo(){
+  UNDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES)));
+  REDO_STACK = [];
+  updateUndoRedoButtons();
+}
+function updateUndoRedoButtons(){
+  const u=document.getElementById("btn-undo");
+  const r=document.getElementById("btn-redo");
+  if (u) u.disabled = UNDO_STACK.length===0;
+  if (r) r.disabled = REDO_STACK.length===0;
+}
+function markDirty(on=true){
+  PENDING_DIRTY = on;
+  const btn = document.getElementById("draft-saveall");
+  if (btn) btn.disabled = !PENDING_DIRTY;
+  const tgl = document.getElementById("draft-toggle");
+  if (tgl) {
+    tgl.textContent = `📝 Mode brouillon : ${DRAFT_MODE ? "ON" : "OFF"}`;
+    tgl.classList.toggle("on", DRAFT_MODE);
+  }
+}
 
 /* ========= PARSEUR ROBUSTE ========= */
 function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
@@ -45,11 +74,8 @@ function parseCsvFlexible(text) {
   if (!text.endsWith("\n")) text += "\n";                  // sécurise la dernière ligne
 
   const res = Papa.parse(text, {
-    header: true,
-    skipEmptyLines: true,
-    delimiter: "",            // auto ("," ";" "\t")
-    newline: "",              // auto
-    transformHeader: normalizeHeader
+    header: true, skipEmptyLines: true,
+    delimiter: "", newline: "", transformHeader: normalizeHeader
   });
 
   const rows = (res.data || []).map(row => ({
@@ -64,7 +90,6 @@ function parseCsvFlexible(text) {
   }));
 
   const cleaned = rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
-  console.log(`[RAW] lignes: ${cleaned.length}`, { firstRow: cleaned[0], lastRow: cleaned.at(-1) });
   return cleaned;
 }
 
@@ -241,16 +266,12 @@ async function saveToGitHubMerged(newRow){
       let sha = null, remoteRows = [];
       const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
 
-      if (get.status === 404) {
-        remoteRows = [];
-      } else if (get.ok) {
-        const j   = await get.json();
-        sha       = j.sha;
-        const csv = decodeB64(j.content);
-        remoteRows = parseCsvFlexible(csv);
+      if (get.status === 404) remoteRows = [];
+      else if (get.ok) {
+        const j   = await get.json(); sha = j.sha;
+        const csv = decodeB64(j.content); remoteRows = parseCsvFlexible(csv);
       } else {
-        const body = await get.text();
-        throw new Error(`GET ${get.status}\n${body}`);
+        const body = await get.text(); throw new Error(`GET ${get.status}\n${body}`);
       }
 
       // 2) Fusion (anti-doublon sur Année+Numéro+Titre)
@@ -262,31 +283,18 @@ async function saveToGitHubMerged(newRow){
       const body = {
         message: sha ? "maj UI (merge append)" : "init + ajout",
         content: encodeB64(toCSV(merged)),
-        branch,
-        ...(sha ? { sha } : {})
+        branch, ...(sha ? { sha } : {})
       };
 
       const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
-
       if (put.ok) {
-        const txt = await put.text(); let commitUrl="";
-        try { commitUrl = (JSON.parse(txt)?.commit?.html_url) || ""; } catch {}
         setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
-        alert(`Enregistré ✅${commitUrl?`\nCommit: ${commitUrl}`:""}`);
+        alert(`Enregistré ✅`);
         return;
       }
-
-      if (put.status === 409) {
-        const wait = 300 * attempt; // backoff
-        console.warn(`[SAVE] 409 conflit, retry dans ${wait} ms (tentative ${attempt}/5)`);
-        await sleep(wait);
-        continue;
-      }
-
-      const errTxt = await put.text();
-      throw new Error(`PUT ${put.status}\n${errTxt}`);
+      if (put.status === 409) { await sleep(300*attempt); continue; }
+      const errTxt = await put.text(); throw new Error(`PUT ${put.status}\n${errTxt}`);
     }
-
     throw new Error("Conflit 409 persistant après 5 tentatives.");
   } finally {
     showLoading(false);
@@ -294,7 +302,7 @@ async function saveToGitHubMerged(newRow){
 }
 
 /* ========= Enregistrer tout le tableau (édition/suppression) ========= */
-async function saveAllRowsToGithub(rows, message="maj (édition/suppression)") {
+async function saveAllRowsToGithub(rows, message="commit groupé"){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
   const headers = { Authorization:`token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
   const url    = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}`;
@@ -320,9 +328,7 @@ async function saveAllRowsToGithub(rows, message="maj (édition/suppression)") {
       throw new Error(`PUT ${put.status}\n${await put.text()}`);
     }
     throw new Error("Conflit 409 persistant.");
-  } finally {
-    showLoading(false);
-  }
+  } finally { showLoading(false); }
 }
 
 /* ========= INIT CSV SI MANQUANT ========= */
@@ -375,12 +381,13 @@ window._inlineSave = async () => {
   }
 
   // MAJ locale + UI
+  pushUndo();
   ARTICLES[EDIT_INLINE_IDX] = updated;
-  EDIT_INLINE_IDX = null;
-  EDIT_INLINE_DRAFT = null;
-  render(); populateDatalists();
+  EDIT_INLINE_IDX = null; EDIT_INLINE_DRAFT = null;
+  render(); populateDatalists(); updateUndoRedoButtons();
 
   if (!GHTOKEN){ alert("Modifié localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+  if (DRAFT_MODE){ markDirty(true); return; }
   try {
     showLoading(true);
     await saveAllRowsToGithub(ARTICLES, "maj UI (édition inline)");
@@ -398,20 +405,23 @@ window._delete = async (idx) => {
     const ok = confirm(`Supprimer cet article ?\n\n${r["Année"]||""} • ${r["Numéro"]||""}\n${r["Titre"]||""}`);
     if (!ok) return;
 
+    pushUndo();
     ARTICLES.splice(idx,1);
-    render(); populateDatalists();
+    render(); populateDatalists(); updateUndoRedoButtons();
 
     if (!GHTOKEN){ alert("Supprimé localement. Cliquez 🔐 pour enregistrer ensuite."); return; }
+    if (DRAFT_MODE){ markDirty(true); return; }
+
     showLoading(true);
     await saveAllRowsToGithub(ARTICLES, "maj UI (suppression)");
+    showLoading(false);
   } catch(e){ alert("Échec suppression : "+(e?.message||e)); }
-  finally{ showLoading(false); }
 };
 
 /* ========= HANDLERS AJOUT / ENREG. ========= */
 window._save = async ()=>{ try{
   if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
-  await saveToGitHubMerged(ARTICLES[0]);
+  await saveToGitHubMerged(ARTICLES[0]); // simple test de commit
 } catch(e){ alert("Save: "+(e?.message||e)); } };
 
 window._init = async ()=>{ try{ await initCsvIfMissing(); }catch(e){ alert("Init: "+e.message); } };
@@ -423,16 +433,70 @@ window._add = async (ev)=>{ try{
               "Page(s)":get("add-pages"), "Auteur(s)":get("add-auteurs"), "Ville(s)":get("add-villes"),
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
+
   // anti-doublon sur ajout
   const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
   if (ARTICLES.some(r=>key(r)===key(row))) { alert("Doublon (Année+Numéro+Titre) — ajout annulé."); return; }
 
-  ARTICLES.unshift(row); currentPage=1; render(); populateDatalists();
-  if (!GHTOKEN){ alert("Ajout local OK. Pour enregistrer, cliquez 🔐 puis réessayez."); return; }
+  pushUndo();
+  ARTICLES.unshift(row); currentPage=1; render(); populateDatalists(); updateUndoRedoButtons();
+
+  if (!GHTOKEN){ alert("Ajout local OK. Cliquez 🔐 puis « Enregistrer tout » pour committer."); return; }
+  if (DRAFT_MODE){ markDirty(true); alert("Ajout stocké en brouillon. Cliquez « Enregistrer tout » pour committer."); return; }
+
   const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
   try { await saveToGitHubMerged(row); }
   finally { if (btn) btn.disabled=false; }
 } catch(e){ alert("Add: "+(e?.message||e)); } };
+
+/* ========= MODE BROUILLON / SAVE ALL / UNDO / REDO / SNAPSHOT ========= */
+window._toggleDraft = ()=>{
+  DRAFT_MODE = !DRAFT_MODE;
+  markDirty(PENDING_DIRTY);
+  alert(DRAFT_MODE
+    ? "Mode brouillon activé : utilisez « Enregistrer tout » pour pousser un commit groupé."
+    : "Mode brouillon désactivé : les actions pourront committer immédiatement.");
+};
+window._undo = ()=>{
+  if (UNDO_STACK.length===0) return;
+  REDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES)));
+  ARTICLES = UNDO_STACK.pop();
+  render(); populateDatalists(); updateUndoRedoButtons(); markDirty(true);
+};
+window._redo = ()=>{
+  if (REDO_STACK.length===0) return;
+  UNDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES)));
+  ARTICLES = REDO_STACK.pop();
+  render(); populateDatalists(); updateUndoRedoButtons(); markDirty(true);
+};
+window._saveAll = async ()=>{
+  if (!PENDING_DIRTY){ alert("Aucun changement à enregistrer."); return; }
+  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord pour committer."); return; }
+  try{
+    showLoading(true);
+    await saveAllRowsToGithub(ARTICLES, "commit groupé (mode brouillon)");
+    UNDO_STACK=[]; REDO_STACK=[]; updateUndoRedoButtons(); markDirty(false);
+    alert("Toutes les modifications locales ont été enregistrées ✅");
+  } catch(e){
+    alert("Échec de l’enregistrement groupé : " + (e?.message||e));
+  } finally{ showLoading(false); }
+};
+window._snapshot = async ()=>{
+  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); return; }
+  const now = new Date(); const pad=n=>String(n).padStart(2,"0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const snapshotPath = `data/articles_${stamp}.csv`;
+  const headers = { Authorization:`token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${snapshotPath}`;
+  try{
+    showLoading(true);
+    const body = { message:`snapshot ${stamp}`, content: encodeB64(toCSV(ARTICLES)), branch: GITHUB_BRANCH };
+    const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
+    if (!put.ok){ const t=await put.text(); throw new Error(`PUT ${put.status}\n${t}`); }
+    alert(`Snapshot créé ✅\nFichier: ${snapshotPath}`);
+  } catch(e){ alert("Échec snapshot : " + (e?.message||e)); }
+  finally{ showLoading(false); }
+};
 
 /* ========= EVENTS ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
@@ -459,5 +523,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if (e.key==="Escape") { e.preventDefault(); window._inlineCancel?.(); }
   });
 
+  updateUndoRedoButtons();
+  markDirty(false);
   setBadge("status-auth", !!GHTOKEN);
 });
