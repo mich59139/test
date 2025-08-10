@@ -151,11 +151,45 @@ async function loadFreshFromAPI(){
 }
 
 /* ========= UI ========= */
+
+function fillSelect(el, values, placeholderAll="(tous)"){
+  if (!el) return;
+  const opts = [`<option value="">${placeholderAll}</option>`]
+    .concat(values.map(v=>`<option>${String(v)}</option>`));
+  el.innerHTML = opts.join("");
+}
+
 function populateFilters(){
-  const an=document.getElementById("filter-annee");
-  const nu=document.getElementById("filter-numero");
-  if (an) an.innerHTML = `<option value="">(toutes)</option>` + uniqSorted(ARTICLES.map(r=>r["Année"])).map(v=>`<option>${v}</option>`).join("");
-  if (nu) nu.innerHTML = `<option value="">(tous)</option>`   + uniqSorted(ARTICLES.map(r=>r["Numéro"])).map(v=>`<option>${v}</option>`).join("");
+  const anSel=document.getElementById("filter-annee");
+  const nuSel=document.getElementById("filter-numero");
+  const currentYear = anSel?.value || "";
+  const prevNumero = nuSel?.value || "";
+
+  // Années uniques triées (numériquement si possible)
+  let years = ARTICLES.map(r=> (r["Année"]||"").toString().trim()).filter(Boolean);
+  years = [...new Set(years)].sort((a,b)=>{
+    const na=parseInt(a,10), nb=parseInt(b,10);
+    if(!isNaN(na)&&!isNaN(nb)) return na-nb;
+    return a.localeCompare(b,"fr",{sensitivity:"base"});
+  });
+  fillSelect(anSel, years, "(toutes)");
+
+  // Numéros uniques, filtrés par année sélectionnée
+  let nums = ARTICLES
+    .filter(r => !currentYear || r["Année"] === currentYear)
+    .map(r=> (r["Numéro"]||"").toString().trim())
+    .filter(Boolean);
+  nums = [...new Set(nums)].sort((a,b)=>{
+    const na=parseInt(a,10), nb=parseInt(b,10);
+    if(!isNaN(na)&&!isNaN(nb)) return na-nb;
+    return a.localeCompare(b,"fr",{sensitivity:"base"});
+  });
+  fillSelect(nuSel, nums, currentYear ? "(tous les numéros de l’année)" : "(tous)");
+
+  // Tenter de restaurer le numéro si encore valide
+  if (prevNumero && nums.includes(prevNumero)) nuSel.value = prevNumero;
+  // Restaurer l'année sélectionnée si présente
+  if (currentYear && years.includes(currentYear)) anSel.value = currentYear;
 }
 
 /* Dédoublonnage intelligent pour Epoque + dédupe auteurs/villes/thèmes */
@@ -614,8 +648,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   await probePublicAndLoad();
   document.getElementById("prev")?.addEventListener("click", ()=>{ currentPage=Math.max(1,currentPage-1); render(); });
   document.getElementById("next")?.addEventListener("click", ()=>{ currentPage=currentPage+1; render(); });
-  document.getElementById("filter-annee")?.addEventListener("change", ()=>{ document.getElementById("filter-numero").value=""; currentPage=1; render(); });
-  document.getElementById("filter-numero")?.addEventListener("change", ()=>{ document.getElementById("filter-annee").value=""; currentPage=1; render(); });
+  document.getElementById("filter-annee")?.addEventListener("change", ()=>{ populateFilters(); currentPage=1; render(); });
+  document.getElementById("filter-numero")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("limit")?.addEventListener("change", ()=>{ currentPage=1; render(); });
   document.getElementById("search")?.addEventListener("input", ()=>{ currentPage=1; render(); });
 
@@ -639,31 +673,23 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   setBadge("status-auth", !!GHTOKEN);
 });
 
-// Gestion bouton aide
-document.addEventListener('DOMContentLoaded', () => {
-    const helpBtn = document.getElementById('help-btn');
-    const helpModal = document.getElementById('help-modal');
-    const helpClose = document.getElementById('help-close');
-    if (helpBtn) helpBtn.onclick = () => helpModal.style.display = 'block';
-    if (helpClose) helpClose.onclick = () => helpModal.style.display = 'none';
-    window.onclick = (e) => { if (e.target == helpModal) helpModal.style.display = 'none'; };
-});
 
-// Filtre numéro par année basé sur articlesData complet
-document.getElementById('filter-annee')?.addEventListener('change', function() {
-    const annee = this.value;
-    const numeroSelect = document.getElementById('filter-numero');
-    if (!numeroSelect) return;
-
-    numeroSelect.innerHTML = '';
-    numeroSelect.appendChild(new Option('', ''));
-
-    const filteredNumeros = articlesData
-        .filter(r => !annee || r['Année'] == annee)
-        .map(r => r['Numéro']);
-
-    const uniqueNumeros = [...new Set(filteredNumeros)];
-    uniqueNumeros.forEach(num => {
-        if (num) numeroSelect.appendChild(new Option(num, num));
-    });
-});
+/* ========= MODAL AIDE ========= */
+function openHelp(){
+  const ov = document.getElementById("help-modal");
+  if (!ov) return;
+  ov.classList.remove("hidden");
+  ov.setAttribute("aria-hidden","false");
+  const onClickOutside = (e)=>{ if (e.target === ov) { window._closeHelp(); } };
+  ov.addEventListener("click", onClickOutside, { once:true });
+  const onKey = (e)=>{ if (e.key === "Escape") { window._closeHelp(); } };
+  document.addEventListener("keydown", onKey, { once:true });
+}
+function closeHelp(){
+  const ov = document.getElementById("help-modal");
+  if (!ov) return;
+  ov.classList.add("hidden");
+  ov.setAttribute("aria-hidden","true");
+}
+window._openHelp = ()=> openHelp();
+window._closeHelp = ()=> closeHelp();

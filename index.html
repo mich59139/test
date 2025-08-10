@@ -54,6 +54,7 @@
       <label>Recherche :
         <input type="text" id="search" placeholder="Chercher dans tous les champs">
       </label>
+      <button class="help-btn" onclick="window._openHelp?.()">❓ Aide</button>
     </div>
 
     <!-- Tableau -->
@@ -150,19 +151,31 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Modal Aide -->
+<div id="help-modal" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="modal-header">
+      <h3 id="help-title">Guide d’utilisation</h3>
+      <button class="modal-close" aria-label="Fermer" onclick="window._closeHelp?.()">✖</button>
+    </div>
+    <div class="modal-body">
+      <div class="help-content">
+        <h4>📜 Objectif</h4>
+        <p>Consulter le catalogue (recherche, filtres, navigation).</p>
+        <h4>🔍 Astuces</h4>
+        <ul>
+          <li>Sélectionnez une <b>Année</b> pour limiter les résultats.</li>
+          <li>Le menu <b>Numéro</b> se met à jour en fonction de l’année.</li>
+          <li>Cliquez sur les entêtes pour trier.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="secondary" onclick="window._closeHelp?.()">Fermer</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
-
-<!-- Modale Aide -->
-<div id="help-modal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <span id="help-close" class="close">&times;</span>
-    <h2>Aide</h2>
-    <p>Utilisez les filtres pour rechercher dans le catalogue.<br>
-       - Sélectionnez une année pour filtrer les numéros disponibles.<br>
-       - Cliquez sur un en-tête de colonne pour trier.<br>
-       - Le bouton "Ajouter un article" vous permet de proposer une nouvelle entrée.</p>
-  </div>
-</div>
