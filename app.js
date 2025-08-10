@@ -259,14 +259,14 @@ function render(){
         
         return `
           <tr class="row" ondblclick="window._inlineEdit?.(${r.__idx})" onclick="window._editRow?.(${r.__idx})">
-            <td data-label="Année" class="col-annee">{r["Année"]||""}</td>
-            <td data-label="Numéro" class="col-numero">{r["Numéro"]||""}</td>
-            <td data-label="Titre" class="col-titre">{r["Titre"]||""}</td>
-            <td data-label="Page(s)" class="col-pages">{r["Page(s)"]||""}</td>
-            <td data-label="Auteur(s)" class="col-auteurs">{r["Auteur(s)"]||""}</td>
-            <td data-label="Ville(s)" class="col-villes">{r["Ville(s)"]||""}</td>
-            <td data-label="Thème(s)" class="col-themes">{r["Theme(s)"]||""}</td>
-            <td data-label="Période" class="col-epoque">{r["Epoque"]||""}</td>
+            <td data-label="Année" class="col-annee">${r["Année"]||""}</td>
+            <td data-label="Numéro" class="col-numero">${r["Numéro"]||""}</td>
+            <td data-label="Titre" class="col-titre">${r["Titre"]||""}</td>
+            <td data-label="Page(s)" class="col-pages">${r["Page(s)"]||""}</td>
+            <td data-label="Auteur(s)" class="col-auteurs">${r["Auteur(s)"]||""}</td>
+            <td data-label="Ville(s)" class="col-villes">${r["Ville(s)"]||""}</td>
+            <td data-label="Thème(s)" class="col-themes">${r["Theme(s)"]||""}</td>
+            <td data-label="Période" class="col-epoque">${r["Epoque"]||""}</td>
             <td class="actions" data-label="Actions">
               <button class="edit" onclick="window._inlineEdit?.(${r.__idx})" aria-label="Modifier la ligne">✎</button>
               <button class="del"  onclick="window._deleteRow?.(${r.__idx})" aria-label="Supprimer la ligne">🗑</button>
@@ -474,7 +474,7 @@ window._delete = async (idx) => {
     const r = ARTICLES[idx];
     if (!r) return;
 
-    const ok = confirm(`Supprimer cet article ?\n\n${r["Année"]||""} • ${r["Numéro"]||""}\n${r["Titre"]||""}`);
+    const ok = confirm(`Supprimer cet article ?\n\n$${r["Année"]||""} • $${r["Numéro"]||""}\n$${r["Titre"]||""}`);
     if (!ok) return;
 
     // 1) Suppression locale + UI
