@@ -1,1 +1,156 @@
-<html><body><h1>Catalogue Articles - Exemple</h1></body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Catalogue des Articles</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="shell">
+    <h1>Catalogue des Articles</h1>
+
+    <!-- Statuts -->
+    <div class="badges panel">
+      Auth: <span id="status-auth">❌</span>
+      Repo: <span id="status-repo">❌</span>
+      Branche: <span id="status-branch">❌</span>
+      Fichier: <span id="status-file">❌</span>
+    </div>
+
+    <!-- Commandes -->
+    <div class="controls panel">
+      <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
+      <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+      <button id="save-btn" onclick="window._save?.()">💾 Enregistrer (test)</button>
+      <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
+      <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
+
+      <!-- Brouillon / commit groupé / historique -->
+      <button id="draft-toggle" onclick="window._toggleDraft?.()">📝 Mode brouillon : OFF</button>
+      <button id="draft-saveall" onclick="window._saveAll?.()" disabled>💾 Enregistrer tout</button>
+      <button onclick="window._undo?.()" disabled id="btn-undo">↩️ Annuler</button>
+      <button onclick="window._redo?.()" disabled id="btn-redo">↪️ Rétablir</button>
+
+      <!-- Ouvrir le modal d’ajout -->
+      <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters panel">
+      <label>Afficher :
+        <select id="limit">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="all">Tout</option>
+        </select>
+      </label>
+      <label>Année :
+        <select id="filter-annee"></select>
+      </label>
+      <label>Numéro :
+        <select id="filter-numero"></select>
+      </label>
+      <label>Recherche :
+        <input type="text" id="search" placeholder="Chercher dans tous les champs">
+      </label>
+    </div>
+
+    <!-- Tableau -->
+    <div id="articles" class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-col="Année">Année</th>
+              <th data-col="Numéro">Numéro</th>
+              <th data-col="Titre">Titre</th>
+              <th data-col="Page(s)">Page(s)</th>
+              <th data-col="Auteur(s)">Auteur(s)</th>
+              <th data-col="Ville(s)">Ville(s)</th>
+              <th data-col="Theme(s)">Thème(s)</th>
+              <th data-col="Epoque">Période</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="articles-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button id="prev">◀ Précédent</button>
+        <span id="pageinfo"></span>
+        <button id="next">Suivant ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div>Sauvegarde / rechargement…</div>
+  </div>
+
+  <!-- Modal d’ajout -->
+  <div id="add-modal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
+      <div class="modal-header">
+        <h3 id="add-modal-title">Nouvel article</h3>
+        <button class="modal-close" aria-label="Fermer" onclick="window._closeAddModal?.()">✖</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid">
+          <label class="req">
+            <span>Année</span>
+            <input type="text" id="add-annee" placeholder="Année" list="dl-annee">
+          </label>
+          <label class="req">
+            <span>Numéro</span>
+            <input type="text" id="add-numero" placeholder="Numéro" list="dl-numero">
+          </label>
+          <label class="full req">
+            <span>Titre</span>
+            <input type="text" id="add-titre" placeholder="Titre" required>
+          </label>
+          <label>
+            <span>Page(s)</span>
+            <input type="text" id="add-pages" placeholder="Page(s)">
+          </label>
+          <label>
+            <span>Auteur(s)</span>
+            <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
+          </label>
+          <label>
+            <span>Ville(s)</span>
+            <input type="text" id="add-villes" placeholder="Ville(s)" list="dl-villes">
+          </label>
+          <label>
+            <span>Thème(s)</span>
+            <input type="text" id="add-themes" placeholder="Thème(s)" list="dl-themes">
+          </label>
+          <label>
+            <span>Période</span>
+            <input type="text" id="add-epoque" placeholder="Période" list="dl-epoque">
+          </label>
+        </div>
+
+        <!-- Datalists -->
+        <datalist id="dl-annee"></datalist>
+        <datalist id="dl-numero"></datalist>
+        <datalist id="dl-auteurs"></datalist>
+        <datalist id="dl-villes"></datalist>
+        <datalist id="dl-themes"></datalist>
+        <datalist id="dl-epoque"></datalist>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary" onclick="window._closeAddModal?.()">Annuler</button>
+        <button id="add-btn" class="primary" onclick="window._submitAddModal?.()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
