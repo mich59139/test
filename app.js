@@ -45,8 +45,12 @@ function updateUndoRedoButtons(){
 }
 function markDirty(on=true){
   PENDING_DIRTY = on;
-  const btn = document.getElementById("draft-saveall");
-  if (btn) btn.disabled = !PENDING_DIRTY;
+
+  // Bouton Enregistrer tout
+  const saveAllBtn = document.getElementById("draft-saveall");
+  if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
+
+  // Bouton brouillon (libellé + style visuel)
   const tgl = document.getElementById("draft-toggle");
   if (tgl) {
     tgl.textContent = `📝 Mode brouillon : ${DRAFT_MODE ? "ON" : "OFF"}`;
@@ -70,8 +74,8 @@ function normalizeHeader(h) {
 }
 function parseCsvFlexible(text) {
   if (!text) return [];
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
-  if (!text.endsWith("\n")) text += "\n";                  // sécurise la dernière ligne
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  if (!text.endsWith("\n")) text += "\n";
 
   const res = Papa.parse(text, {
     header: true, skipEmptyLines: true,
@@ -89,8 +93,7 @@ function parseCsvFlexible(text) {
     "Epoque":    row["Epoque"]   ?? row["Période"] ?? row["Periode"] ?? ""
   }));
 
-  const cleaned = rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
-  return cleaned;
+  return rows.filter(r => Object.values(r).some(v => (v ?? "").toString().trim() !== ""));
 }
 
 /* ========= RESET FILTRES ========= */
@@ -159,7 +162,6 @@ function applyFiltersSortPaginate(){
   const an=document.getElementById("filter-annee")?.value||"";
   const nu=document.getElementById("filter-numero")?.value||"";
 
-  // Attacher l’index original à chaque ligne
   let data = ARTICLES.map((r,i)=>({ ...r, __idx:i }))
     .filter(r=>{
       const okS=!term||Object.values(r).some(v=> (v||"").toString().toLowerCase().includes(term));
@@ -449,26 +451,26 @@ window._add = async (ev)=>{ try{
   finally { if (btn) btn.disabled=false; }
 } catch(e){ alert("Add: "+(e?.message||e)); } };
 
-/* ========= MODE BROUILLON / SAVE ALL / UNDO / REDO / SNAPSHOT ========= */
+/* ========= MODE BROUILLON / SAVE ALL / SNAPSHOT ========= */
 window._toggleDraft = ()=>{
   DRAFT_MODE = !DRAFT_MODE;
-  markDirty(PENDING_DIRTY);
+
+  // MAJ visuelle immédiate du bouton
+  const tgl = document.getElementById("draft-toggle");
+  if (tgl) {
+    tgl.textContent = `📝 Mode brouillon : ${DRAFT_MODE ? "ON" : "OFF"}`;
+    tgl.classList.toggle("on", DRAFT_MODE);
+  }
+
+  // Conserver l'état d'Enregistrer tout basé sur PENDING_DIRTY
+  const saveAllBtn = document.getElementById("draft-saveall");
+  if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
+
   alert(DRAFT_MODE
-    ? "Mode brouillon activé : utilisez « Enregistrer tout » pour pousser un commit groupé."
-    : "Mode brouillon désactivé : les actions pourront committer immédiatement.");
+    ? "Mode brouillon activé : vos changements restent locaux. Cliquez « Enregistrer tout » pour committer."
+    : "Mode brouillon désactivé : les actions peuvent committer immédiatement.");
 };
-window._undo = ()=>{
-  if (UNDO_STACK.length===0) return;
-  REDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES)));
-  ARTICLES = UNDO_STACK.pop();
-  render(); populateDatalists(); updateUndoRedoButtons(); markDirty(true);
-};
-window._redo = ()=>{
-  if (REDO_STACK.length===0) return;
-  UNDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES)));
-  ARTICLES = REDO_STACK.pop();
-  render(); populateDatalists(); updateUndoRedoButtons(); markDirty(true);
-};
+
 window._saveAll = async ()=>{
   if (!PENDING_DIRTY){ alert("Aucun changement à enregistrer."); return; }
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord pour committer."); return; }
@@ -481,21 +483,49 @@ window._saveAll = async ()=>{
     alert("Échec de l’enregistrement groupé : " + (e?.message||e));
   } finally{ showLoading(false); }
 };
+
 window._snapshot = async ()=>{
-  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); return; }
+  if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord (bouton en haut)."); return; }
+
   const now = new Date(); const pad=n=>String(n).padStart(2,"0");
   const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
   const snapshotPath = `data/articles_${stamp}.csv`;
-  const headers = { Authorization:`token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
+
+  const headers = {
+    Authorization: `token ${GHTOKEN}`,
+    "Accept": "application/vnd.github+json",
+    "Content-Type": "application/json"
+  };
   const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${snapshotPath}`;
+
   try{
     showLoading(true);
-    const body = { message:`snapshot ${stamp}`, content: encodeB64(toCSV(ARTICLES)), branch: GITHUB_BRANCH };
+    const body = {
+      message: `snapshot ${stamp}`,
+      content: encodeB64(toCSV(ARTICLES)),
+      branch: GITHUB_BRANCH
+    };
     const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
-    if (!put.ok){ const t=await put.text(); throw new Error(`PUT ${put.status}\n${t}`); }
+
+    if (!put.ok){
+      const t = await put.text();
+      console.error("Snapshot PUT error", put.status, t);
+      if (put.status === 401 || put.status === 403) {
+        alert("Snapshot refusé : token invalide ou sans droits (scope « public_repo » pour repo public, sinon « repo »).");
+      } else if (put.status === 404) {
+        alert("Snapshot refusé (404) : vérifiez OWNER/REPO/BRANCH.\n" + t);
+      } else {
+        alert(`Snapshot KO (${put.status})\n` + t);
+      }
+      return;
+    }
     alert(`Snapshot créé ✅\nFichier: ${snapshotPath}`);
-  } catch(e){ alert("Échec snapshot : " + (e?.message||e)); }
-  finally{ showLoading(false); }
+  } catch(e){
+    console.error(e);
+    alert("Échec snapshot : " + (e?.message||e));
+  } finally {
+    showLoading(false);
+  }
 };
 
 /* ========= EVENTS ========= */
@@ -524,6 +554,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   });
 
   updateUndoRedoButtons();
-  markDirty(false);
+  markDirty(false);         // initialise labels (brouillon OFF, saveAll disabled)
   setBadge("status-auth", !!GHTOKEN);
 });
