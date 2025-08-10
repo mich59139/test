@@ -207,78 +207,25 @@ tr.editing .cell-input{
 .help-footer .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
 
 
-/* ===== Branding ===== */
-.brand { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
-.brand-logo { max-height:28px; height:auto; width:auto; background:#fff; padding:6px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-.brand-text { display:flex; flex-direction:column; }
-.brand-name { font-weight:600; font-size:1.05rem; line-height:1.2; }
-.brand-sub { font-size:1.6rem; line-height:1.2; margin:0; }
-@media (max-width:600px){ .brand-logo{ max-height:22px; padding:4px; border-radius:8px } .brand-sub{ font-size:1.3rem } }
-
-/* ===== Masquer les boutons admin qui ne servent plus ===== */
-#save-btn, #draft-toggle, #draft-saveall, #btn-undo, #btn-redo,
-button[onclick*="_init?.("], button[onclick*="_reloadRaw?.("] { display:none !important; }
-
-/* ===== Accessibilité & Mobile ===== */
-:root{ --tap: 44px; }
-button, select, input[type="text"]{ min-height: var(--tap); }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible{
-  outline: 2px solid #1976d2; outline-offset: 2px;
+/* ===== Desktop sticky header ===== */
+.table-wrap{ overflow:auto; }
+@media (min-width: 801px){
+  thead th{ position: sticky; top: 0; background: #fff; z-index: 2; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
 }
 
-/* Table lisible en portrait (sans toucher au JS) */
-@media (max-width: 800px){
-  table thead{
-    border:0; clip:rect(0 0 0 0); height:1px; margin:-1px; overflow:hidden; padding:0; position:absolute; width:1px;
-  }
-  table tbody tr{
-    display:block; border:1px solid #e3e3e3; border-radius:12px; margin-bottom:10px; padding:8px 10px;
-    box-shadow:0 1px 2px rgba(0,0,0,.04);
-  }
-  table tbody td{
-    display:grid; grid-template-columns: 42% 1fr; gap:8px; padding:6px 0; vertical-align:top;
-  }
-  /* Libellés par colonne (sans data-label) */
-  table tbody td:nth-child(1)::before  { content:"Année";   font-weight:600; opacity:.85; }
-  table tbody td:nth-child(2)::before  { content:"Numéro";  font-weight:600; opacity:.85; }
-  table tbody td:nth-child(3)::before  { content:"Titre";   font-weight:600; opacity:.85; }
-  table tbody td:nth-child(4)::before  { content:"Page(s)"; font-weight:600; opacity:.85; }
-  table tbody td:nth-child(5)::before  { content:"Auteur(s)"; font-weight:600; opacity:.85; }
-  table tbody td:nth-child(6)::before  { content:"Ville(s)";  font-weight:600; opacity:.85; }
-  table tbody td:nth-child(7)::before  { content:"Thème(s)";  font-weight:600; opacity:.85; }
-  table tbody td:nth-child(8)::before  { content:"Période";   font-weight:600; opacity:.85; }
-  table tbody td:nth-child(9)::before  { content:"Actions";   font-weight:600; opacity:.85; }
-  td.actions{ display:flex; gap:10px; align-items:center; }
-  .col-titre{ word-break: break-word; }
+/* ===== Print stylesheet (A4) ===== */
+@media print{
+  @page { size: A4 portrait; margin: 12mm; }
+  body{ font-size: 11pt; color: #000; }
+  .badges, .filters, .controls, .pager, .loading, .modal, .help-panel{ display: none !important; }
+  .brand{ margin-bottom: 8mm; }
+  .brand-logo{ max-height: 24px; background: none; padding: 0; box-shadow: none; }
+  table{ width: 100%; border-collapse: collapse; }
+  thead{ position: static; clip:auto; height:auto; margin:0; overflow:visible; padding:0; width:auto; }
+  thead th, tbody td{ border: 1px solid #444; padding: 4px 6px; }
+  tbody tr{ display: table-row; box-shadow: none; border: 0; padding: 0; margin: 0; }
+  tbody td{ display: table-cell; grid-template-columns: none; gap: 0; }
 }
-/* === Compact mobile (<=600px) === */
-@media (max-width: 600px){
-  :root{ --tap: 40px; }                    /* cibles tactiles un peu moins hautes */
-  body{ font-size: 15px; }                 /* police globale légèrement réduite */
-  .brand-logo{ max-height: 20px; padding: 3px; }
-  .brand-sub{ font-size: 1.15rem; }
 
-  .panel{ padding: 8px 10px; }
-  .filters.panel label, .controls.panel button{ flex: 1 1 100%; } /* éléments sur une colonne */
-
-  /* Cartes plus serrées */
-  table tbody tr{ padding: 6px 8px; margin-bottom: 8px; }
-  table tbody td{
-    grid-template-columns: 36% 1fr;       /* libellé un peu plus étroit */
-    gap: 6px;
-    padding: 4px 0;
-  }
-}
-/* Ultra-compact ≤480px */
-@media (max-width: 480px){
-  body{ font-size: 14.5px; }
-  table tbody tr{ padding: 5px 8px; margin-bottom: 6px; border-radius: 10px; }
-  table tbody td{ grid-template-columns: 34% 1fr; gap: 5px; padding: 3px 0; }
-  /* Masquer colonnes secondaires */
-  table tbody td:nth-child(4),  /* Page(s) */
-  table tbody td:nth-child(6) { /* Ville(s) */
-    display: none;
-  }
-  .brand-logo{ max-height: 18px; padding: 3px; }
-  .brand-sub{ font-size: 1.08rem; }
-}
+/* ===== Minor polish ===== */
+.brand-link{ display:inline-block; line-height:0; }
