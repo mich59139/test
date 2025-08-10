@@ -250,3 +250,18 @@ body { background-image: none !important; }
     opacity: .06; pointer-events: none;
   }
 }
+/* 1) Logo du header (en haut à gauche) */
+.brand-logo { max-height: 20px; }          /* ex : 20px au lieu de 28px */
+.brand-sub  { font-size: 1.25rem; }        /* réduit un peu le titre à côté */
+
+/* 2) Grand logo en filigrane (si tu as gardé la version ::before) */
+@media (min-width: 900px){
+  .shell::before{
+    background-size: 360px auto;           /* ← était 520px : diminue la largeur */
+    opacity: .05;                           /* un poil plus discret */
+  }
+}
+/* Option : cacher le filigrane en mobile, si besoin */
+@media (max-width: 900px){
+  .shell::before{ display:none; }
+}
