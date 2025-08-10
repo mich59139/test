@@ -34,6 +34,8 @@
 
       <!-- Ouvrir le modal d’ajout -->
       <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
+      <!-- Aide -->
+      <button onclick="window._openHelp?.()">❓ Aide</button>
     </div>
 
     <!-- Filtres -->
@@ -146,6 +148,55 @@
       <div class="modal-footer">
         <button class="secondary" onclick="window._closeAddModal?.()">Annuler</button>
         <button id="add-btn" class="primary" onclick="window._submitAddModal?.()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Aide -->
+  <div id="help-modal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="modal-header">
+        <h3 id="help-title">Guide d’utilisation</h3>
+        <button class="modal-close" aria-label="Fermer" onclick="window._closeHelp?.()">✖</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-content">
+          <h4>📜 Objectif</h4>
+          <p>L’application permet de <strong>consulter</strong> le catalogue d’articles (recherche, filtres, navigation).</p>
+
+          <h4>🔍 Fonctions disponibles pour tous</h4>
+          <ul>
+            <li><strong>Recherche</strong> : tapez un mot-clé (titre, auteur, ville, thème…).</li>
+            <li><strong>Filtres</strong> :
+              <ul>
+                <li><em>Année</em> : limite aux articles de l’année choisie.</li>
+                <li><em>Numéro</em> : s’adapte automatiquement à l’année sélectionnée.</li>
+                <li><em>Afficher</em> : nombre d’articles par page.</li>
+              </ul>
+            </li>
+            <li><strong>Navigation</strong> : utilisez <em>◀ Précédent</em> / <em>Suivant ▶</em>. Le compteur indique la page et le total.</li>
+          </ul>
+
+          <h4>✏️ Fonctions réservées à l’administrateur</h4>
+          <p>Pour fiabiliser la base, les fonctions d’édition sont provisoirement <strong>réservées</strong> à l’administrateur :</p>
+          <ul>
+            <li>Ajout / Modification / Suppression d’articles</li>
+            <li>Enregistrement dans GitHub (commits)</li>
+            <li>Mode brouillon et enregistrement groupé</li>
+          </ul>
+
+          <h4>🖌️ Conseils d’affichage</h4>
+          <ul>
+            <li>Si le texte est petit : <kbd>Ctrl</kbd> + <kbd>+</kbd> (Windows) ou <kbd>⌘</kbd> + <kbd>+</kbd> (Mac).</li>
+            <li>Sur smartphone, utilisez le mode paysage.</li>
+          </ul>
+
+          <h4>🆘 Assistance</h4>
+          <p>En cas de question ou pour demander une mise à jour, contactez l’administrateur.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="window._closeHelp?.()">Fermer</button>
       </div>
     </div>
   </div>
