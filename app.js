@@ -4,7 +4,8 @@ const GITHUB_REPO   = "test";
 const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
-const SNAPSHOT_ENABLED = false; // snapshots désactivés
+
+const SNAPSHOT_ENABLED = false;
 
 let GHTOKEN  = localStorage.getItem("ghtoken") || null;
 let ARTICLES = [];
@@ -18,9 +19,6 @@ let DRAFT_MODE = false;
 let PENDING_DIRTY = false;
 let UNDO_STACK = [];
 let REDO_STACK = [];
-
-// Tri par défaut (si aucun clic d’en-tête)
-let DEFAULT_SORT = { col: "Année", dir: "desc" };
 
 /* ========= UTILS ========= */
 const HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
@@ -77,11 +75,8 @@ function parseCsvFlexible(text) {
   if (!text.endsWith("\n")) text += "\n";
 
   const res = Papa.parse(text, {
-    header: true,
-    skipEmptyLines: "greedy",
-    delimiter: "",
-    newline: "",
-    transformHeader: normalizeHeader
+    header: true, skipEmptyLines: "greedy",
+    delimiter: "", newline: "", transformHeader: normalizeHeader
   });
 
   const rows = (res.data || []).map(row => ({
@@ -111,7 +106,7 @@ function resetFiltersUI() {
   currentPage = 1;
 }
 
-/* ========= LECTURE (RAW) ========= */
+/* ========= LECTURE PUBLIQUE (RAW) ========= */
 async function probePublicAndLoad() {
   try {
     const r = await fetch(`${RAW_URL}?ts=${Date.now()}`, { cache: "no-store" });
@@ -135,8 +130,9 @@ async function probePublicAndLoad() {
     setBadge("status-repo", false); setBadge("status-branch", false); setBadge("status-file", false);
   }
 }
+window._reloadRaw = async ()=>{ await probePublicAndLoad(); };
 
-/* ========= LECTURE FRAÎCHE via API (après commit) ========= */
+/* ========= LECTURE FRAÎCHE (API) ========= */
 async function loadFreshFromAPI(){
   const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
   const headers = { "Accept":"application/vnd.github+json" };
@@ -147,50 +143,60 @@ async function loadFreshFromAPI(){
   const j = await r.json();
   const csv = decodeB64(j.content || "");
   ARTICLES = parseCsvFlexible(csv);
-  populateFilters(); // régénère Année + Numéro (filtré)
+  populateFilters();
   populateDatalists();
   currentPage = 1;
   render();
   setBadge("status-file", true, ` (${ARTICLES.length})`);
 }
-window._reloadRaw = async ()=>{ await probePublicAndLoad(); };
 
-/* ========= UI : filtres (Numéro dépend de Année) ========= */
-function fillSelect(el, values, placeholderAll="(tous)"){
-  if (!el) return;
-  const opts = [`<option value="">${placeholderAll}</option>`]
-    .concat(values.map(v=>`<option>${String(v)}</option>`));
-  el.innerHTML = opts.join("");
-}
-
+/* ========= UI ========= */
 function populateFilters(){
-  const anSel=document.getElementById("filter-annee");
-  const nuSel=document.getElementById("filter-numero");
-  const currentYear = anSel?.value || "";
+  const anSel = document.getElementById("filter-annee");
+  const nuSel = document.getElementById("filter-numero");
+  const prevYear = anSel?.value || "";
+  const prevNum  = nuSel?.value || "";
 
-  // Années uniques triées numériquement si possible
+  // Années uniques triées (numérique si possible)
   let annees = ARTICLES.map(r=> (r["Année"]||"").toString().trim()).filter(Boolean);
   annees = [...new Set(annees)].sort((a,b)=>{
     const na=parseInt(a,10), nb=parseInt(b,10);
     if(!isNaN(na)&&!isNaN(nb)) return na-nb;
     return a.localeCompare(b,"fr",{sensitivity:"base"});
   });
+
+  // Helper pour remplir un select
+  const fillSelect = (el, values, label="(tous)") => {
+    if (!el) return;
+    el.innerHTML = `<option value="">${label}</option>` + values.map(v=>`<option>${v}</option>`).join("");
+  };
+
   fillSelect(anSel, annees, "(toutes)");
+  if (anSel && prevYear) anSel.value = prevYear; // restaurer sélection si possible
 
   // Numéros filtrés par année sélectionnée
-  let list = ARTICLES
-    .filter(r => !currentYear || r["Année"] === currentYear)
+  const selectedYear = anSel?.value || "";
+  let numeros = ARTICLES
+    .filter(r => !selectedYear || r["Année"] === selectedYear)
     .map(r => (r["Numéro"]||"").toString().trim())
     .filter(Boolean);
-  list = [...new Set(list)].sort((a,b)=>{
+
+  numeros = [...new Set(numeros)].sort((a,b)=>{
     const na=parseInt(a,10), nb=parseInt(b,10);
     if(!isNaN(na)&&!isNaN(nb)) return na-nb;
     return a.localeCompare(b,"fr",{sensitivity:"base"});
   });
-  fillSelect(nuSel, list, currentYear ? "(tous les numéros de l’année)" : "(tous)");
+
+  fillSelect(nuSel, numeros, selectedYear ? "(tous les numéros de l’année)" : "(tous)");
+  if (nuSel && prevNum && numeros.includes(prevNum)) {
+    nuSel.value = prevNum;
+  } else if (nuSel && selectedYear) {
+    // si année a changé, on remet numéro à vide pour éviter un filtre bloquant
+    nuSel.value = "";
+  }
 }
 
-/* ========= DATALISTS (dédoublonnage) ========= */
+/* Dédoublonnage intelligent pour Epoque + dédupe auteurs/villes/thèmes */
 function populateDatalists(){
   const fill = (id, values) => {
     const el = document.getElementById(id);
@@ -198,36 +204,41 @@ function populateDatalists(){
     const opts = values.map(v=>`<option value="${String(v).replaceAll('"','&quot;')}">`).join("");
     el.innerHTML = opts;
   };
+
+  // utilitaires
   const stripAcc = s => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
   const canon = s => stripAcc(String(s||"").trim()).replace(/\s+/g," ").toLowerCase();
 
-  // Epoque: dédoublonnage canonique
-  const mapE = new Map();
+  // Epoque : garder la première forme rencontrée, dédoublonner par canon
+  const epoquesCanonMap = new Map();
   for (const r of ARTICLES){
     const raw = r["Epoque"];
     if (!raw) continue;
     const c = canon(raw);
-    if (c && !mapE.has(c)) mapE.set(c, raw.trim());
+    if (!c) continue;
+    if (!epoquesCanonMap.has(c)) epoquesCanonMap.set(c, raw.trim());
   }
-  const epoquesVals = Array.from(mapE.values()).sort((a,b)=>{
+  const epoquesVals = Array.from(epoquesCanonMap.values());
+  epoquesVals.sort((a,b)=>{
     const na = parseInt(String(a).match(/\d{3,4}/)?.[0]||"",10);
     const nb = parseInt(String(b).match(/\d{3,4}/)?.[0]||"",10);
     if (!isNaN(na) && !isNaN(nb)) return na - nb;
     return (""+a).localeCompare(""+b, "fr", { sensitivity:"base" });
   });
 
+  // Auteurs/Villes/Thèmes : split + set (on garde la forme d’origine)
   const uniqFromSplit = arr => {
-    const seen = new Set(), out=[];
+    const seen = new Set();
+    const out  = [];
     for (const v of arr) {
-      for (const p of splitMulti(v)) {
-        const k = canon(p);
-        if (k && !seen.has(k)){ seen.add(k); out.push(p.trim()); }
+      for (const piece of splitMulti(v)) {
+        const key = canon(piece);
+        if (key && !seen.has(key)) { seen.add(key); out.push(piece.trim()); }
       }
     }
     return uniqSorted(out);
   };
 
-  // Année/Numéro datalists = toutes valeurs (indépendant des filtres)
   fill("dl-annee",   uniqSorted(ARTICLES.map(r=> (r["Année"]||"").toString().trim()).filter(Boolean)));
   fill("dl-numero",  uniqSorted(ARTICLES.map(r=> (r["Numéro"]||"").toString().trim()).filter(Boolean)));
   fill("dl-auteurs", uniqFromSplit(ARTICLES.map(r=>r["Auteur(s)"]||"")));
@@ -236,7 +247,6 @@ function populateDatalists(){
   fill("dl-epoque",  epoquesVals);
 }
 
-/* ========= TRI / PAGINATION / RENDER ========= */
 function applyFiltersSortPaginate(){
   const term=(document.getElementById("search")?.value||"").toLowerCase();
   const an=document.getElementById("filter-annee")?.value||"";
@@ -251,7 +261,7 @@ function applyFiltersSortPaginate(){
     });
 
   let col = sortCol, dir = sortDir;
-  if (!col && DEFAULT_SORT){ col = DEFAULT_SORT.col; dir = DEFAULT_SORT.dir; }
+  if (!col){ col = "Année"; dir = "desc"; } // récents d'abord
 
   if (col){
     const factor = dir === "asc" ? 1 : -1;
@@ -438,7 +448,7 @@ async function initCsvIfMissing(){
   const body = { message:"init: create data/articles.csv", content: encodeB64(HEADERS.join(",")+"\n"), branch:GITHUB_BRANCH };
   const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
   if (!put.ok){ const t=await put.text(); alert(`Création KO: ${put.status}\n${t}`); return; }
-  alert("CSV initialisé ✅"); await loadFreshFromAPI().catch(()=>probePublicAndLoad());
+  alert("CSV initialisé ✅"); await loadFreshFromAPI().catch(probePublicAndLoad);
 }
 
 /* ========= ÉDITION INLINE / SUPPRESSION ========= */
@@ -511,7 +521,7 @@ window._delete = async (idx) => {
       return;
     }
 
-    // 3) Mode brouillon => marquer comme modifié
+    // 3) Mode brouillon => marquer comme modifié, pas de commit immédiat
     if (DRAFT_MODE){
       markDirty(true);
       alert("Suppression stockée en brouillon. Cliquez « Enregistrer tout » pour committer.");
@@ -554,7 +564,7 @@ window._add = async (ev)=>{ try{
   finally { if (btn) btn.disabled=false; }
 } catch(e){ alert("Add: "+(e?.message||e)); } };
 
-/* ========= MODE BROUILLON / SAVE ALL / SNAPSHOT (off) ========= */
+/* ========= MODE BROUILLON / SAVE ALL / SNAPSHOT ========= */
 window._toggleDraft = ()=>{
   DRAFT_MODE = !DRAFT_MODE;
   const tgl = document.getElementById("draft-toggle");
@@ -596,8 +606,10 @@ function openModal(){
   ov.classList.remove("hidden");
   ov.setAttribute("aria-hidden", "false");
 
+  // focus 1er champ
   setTimeout(()=> document.getElementById("add-annee")?.focus(), 0);
 
+  // auto-normalisation légère sur Epoque (capitalise 1re lettre) au blur
   const epochInput = document.getElementById("add-epoque");
   if (epochInput){
     epochInput.addEventListener("blur", ()=>{
@@ -607,9 +619,11 @@ function openModal(){
     }, { once:false });
   }
 
+  // fermer en cliquant à l’extérieur
   const onClickOutside = (e)=>{ if (e.target === ov) { window._closeAddModal(); } };
   ov.addEventListener("click", onClickOutside, { once:true });
 
+  // fermer avec Echap
   const onKey = (e)=>{ if (e.key === "Escape") { window._closeAddModal(); } };
   document.addEventListener("keydown", onKey, { once:true });
 }
@@ -636,16 +650,16 @@ window._submitAddModal = async ()=>{
 /* ========= EVENTS ========= */
 document.addEventListener("DOMContentLoaded", async ()=>{
   await probePublicAndLoad();
-
   document.getElementById("prev")?.addEventListener("click", ()=>{ currentPage=Math.max(1,currentPage-1); render(); });
   document.getElementById("next")?.addEventListener("click", ()=>{ currentPage=currentPage+1; render(); });
 
-  // Année -> recalcule la liste des numéros de cette année + applique filtres
+  // Année -> recalcule Numéro pour cette année + applique filtres sans vider Année
   document.getElementById("filter-annee")?.addEventListener("change", ()=>{
-    populateFilters(); // régénère "Numéro" selon l'année sélectionnée
+    populateFilters(); // met à jour la liste des numéros selon l'année sélectionnée
     currentPage=1; render();
   });
 
+  // Numéro change => applique filtres (ne vide pas Année)
   document.getElementById("filter-numero")?.addEventListener("change", ()=>{
     currentPage=1; render();
   });
@@ -672,3 +686,9 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   markDirty(false);
   setBadge("status-auth", !!GHTOKEN);
 });
+
+// Expose boutons utilitaires prévus dans l'HTML
+window._save = ()=> alert("Bouton « Enregistrer (test) » : pas d’action. Utilisez l’ajout/modif/suppression pour committer.");
+window._init = ()=> initCsvIfMissing();
+window._undo = ()=>{ if (!UNDO_STACK.length) return; REDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES))); ARTICLES = UNDO_STACK.pop(); render(); populateDatalists(); updateUndoRedoButtons(); };
+window._redo = ()=>{ if (!REDO_STACK.length) return; UNDO_STACK.push(JSON.parse(JSON.stringify(ARTICLES))); ARTICLES = REDO_STACK.pop(); render(); populateDatalists(); updateUndoRedoButtons(); };
