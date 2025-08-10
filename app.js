@@ -5,7 +5,6 @@ const GITHUB_BRANCH = "main";
 const CSV_PATH      = "data/articles.csv";
 const RAW_URL       = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_PATH}`;
 
-// Désactiver les snapshots
 const SNAPSHOT_ENABLED = false;
 
 let GHTOKEN  = localStorage.getItem("ghtoken") || null;
@@ -76,7 +75,7 @@ function parseCsvFlexible(text) {
   if (!text.endsWith("\n")) text += "\n";
 
   const res = Papa.parse(text, {
-    header: true, skipEmptyLines: true,
+    header: true, skipEmptyLines: "greedy",
     delimiter: "", newline: "", transformHeader: normalizeHeader
   });
 
@@ -132,6 +131,24 @@ async function probePublicAndLoad() {
   }
 }
 window._reloadRaw = async ()=>{ await probePublicAndLoad(); };
+
+/* ========= LECTURE FRAÎCHE (API) ========= */
+async function loadFreshFromAPI(){
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${CSV_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+  const headers = { "Accept":"application/vnd.github+json" };
+  if (GHTOKEN) headers.Authorization = `token ${GHTOKEN}`;
+
+  const r = await fetch(url, { headers, cache: "no-store" });
+  if (!r.ok) throw new Error(`API GET ${r.status}`);
+  const j = await r.json();
+  const csv = decodeB64(j.content || "");
+  ARTICLES = parseCsvFlexible(csv);
+  populateFilters();
+  populateDatalists();
+  currentPage = 1;
+  render();
+  setBadge("status-file", true, ` (${ARTICLES.length})`);
+}
 
 /* ========= UI ========= */
 function populateFilters(){
@@ -205,10 +222,25 @@ function applyFiltersSortPaginate(){
       return okS&&okA&&okN;
     });
 
-  if (sortCol){
-    const dir=sortDir==="asc"?1:-1;
-    data.sort((a,b)=> (""+a[sortCol]).localeCompare(""+b[sortCol],"fr")*dir);
+  let col = sortCol, dir = sortDir;
+  if (!col){ col = "Année"; dir = "desc"; } // récents d'abord
+
+  if (col){
+    const factor = dir === "asc" ? 1 : -1;
+    const asNum = v => {
+      const n = parseInt(String(v).replace(/[^\d-]/g,""), 10);
+      return isNaN(n) ? null : n;
+    };
+    const numericCols = new Set(["Année","Numéro"]);
+    data.sort((a,b)=>{
+      if (numericCols.has(col)) {
+        const na = asNum(a[col]), nb = asNum(b[col]);
+        if (na!==null && nb!==null) return (na-nb)*factor;
+      }
+      return (""+a[col]).localeCompare(""+b[col], "fr", { sensitivity:"base" })*factor;
+    });
   }
+
   const limit=document.getElementById("limit")?.value||"50";
   const per=(limit==="all")?data.length:parseInt(limit,10);
   const start=(currentPage-1)*per;
@@ -325,7 +357,7 @@ async function saveToGitHubMerged(newRow){
 
       const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
       if (put.ok) {
-        setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 1000);
+        try { await loadFreshFromAPI(); } catch { await probePublicAndLoad(); }
         alert(`Enregistré ✅`);
         return;
       }
@@ -357,7 +389,7 @@ async function saveAllRowsToGithub(rows, message="commit groupé"){
       const body = { message, content: encodeB64(toCSV(rows)), branch, ...(sha?{sha}:{}) };
       const put  = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
       if (put.ok){
-        setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 800);
+        try { await loadFreshFromAPI(); } catch { await probePublicAndLoad(); }
         return;
       }
       if (put.status===409){ await sleep(250*attempt); continue; }
@@ -378,7 +410,7 @@ async function initCsvIfMissing(){
   const body = { message:"init: create data/articles.csv", content: encodeB64(HEADERS.join(",")+"\n"), branch:GITHUB_BRANCH };
   const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
   if (!put.ok){ const t=await put.text(); alert(`Création KO: ${put.status}\n${t}`); return; }
-  alert("CSV initialisé ✅"); await probePublicAndLoad(); resetFiltersUI(); render();
+  alert("CSV initialisé ✅"); await loadFreshFromAPI().catch(probePublicAndLoad);
 }
 
 /* ========= ÉDITION INLINE / SUPPRESSION ========= */
@@ -458,10 +490,10 @@ window._delete = async (idx) => {
       return;
     }
 
-    // 4) Commit complet (anti‑409) + reload RAW
+    // 4) Commit complet (anti‑409) + reload frais
     showLoading(true);
     await saveAllRowsToGithub(ARTICLES, "maj UI (suppression)");
-    setTimeout(async ()=>{ await probePublicAndLoad(); resetFiltersUI(); render(); }, 800);
+    try { await loadFreshFromAPI(); } catch { await probePublicAndLoad(); }
     alert("Enregistré ✅");
   } catch(e){
     console.error(e);
@@ -519,10 +551,9 @@ window._saveAll = async ()=>{
     alert("Toutes les modifications locales ont été enregistrées ✅");
   } catch(e){
     alert("Échec de l’enregistrement groupé : " + (e?.message||e));
-  } finally{ showLoading(false); }
+  } finally { showLoading(false); }
 };
 
-// Snapshot désactivé
 window._snapshot = ()=>{
   if (!SNAPSHOT_ENABLED) {
     alert("La fonction Snapshot est désactivée.");
