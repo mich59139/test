@@ -22,9 +22,16 @@
     <div class="controls panel">
       <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
       <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-      <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer dans GitHub</button>
+      <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer (test)</button>
       <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
       <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
+
+      <!-- Brouillon / commit groupé / historique -->
+      <button id="draft-toggle" onclick="window._toggleDraft?.()">📝 Mode brouillon : OFF</button>
+      <button id="draft-saveall" onclick="window._saveAll?.()" disabled>💾 Enregistrer tout</button>
+      <button onclick="window._undo?.()" disabled id="btn-undo">↩️ Annuler</button>
+      <button onclick="window._redo?.()" disabled id="btn-redo">↪️ Rétablir</button>
+      <button onclick="window._snapshot?.()">📸 Snapshot</button>
     </div>
 
     <!-- Ajout d'article (avec suggestions) -->
@@ -52,7 +59,7 @@
       <input type="text" id="add-epoque"  placeholder="Période"   list="dl-epoque">
       <datalist id="dl-epoque"></datalist>
 
-      <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter et enregistrer</button>
+      <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter</button>
     </div>
 
     <!-- Filtres -->
@@ -61,7 +68,6 @@
         <select id="limit">
           <option value="50" selected>50</option>
           <option value="100">100</option>
-          <option value="250">250</option>
           <option value="all">Tout</option>
         </select>
       </label>
