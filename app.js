@@ -14,10 +14,10 @@ let EDIT_INLINE_IDX = null;     // index global en édition inline
 let EDIT_INLINE_DRAFT = null;   // copie de travail
 
 // Mode brouillon / undo / redo
-let DRAFT_MODE = false;         // true: pas de commit immédiat
-let PENDING_DIRTY = false;      // modifs locales en attente
-let UNDO_STACK = [];            // snapshots d'états
-let REDO_STACK = [];            // redo
+let DRAFT_MODE = false;
+let PENDING_DIRTY = false;
+let UNDO_STACK = [];
+let REDO_STACK = [];
 
 /* ========= UTILS ========= */
 const HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
@@ -46,11 +46,9 @@ function updateUndoRedoButtons(){
 function markDirty(on=true){
   PENDING_DIRTY = on;
 
-  // Bouton Enregistrer tout
   const saveAllBtn = document.getElementById("draft-saveall");
   if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
 
-  // Bouton brouillon (libellé + style visuel)
   const tgl = document.getElementById("draft-toggle");
   if (tgl) {
     tgl.textContent = `📝 Mode brouillon : ${DRAFT_MODE ? "ON" : "OFF"}`;
@@ -63,7 +61,7 @@ function stripAccents(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036
 function normalizeHeader(h) {
   const t = stripAccents((h||"").trim()).replace(/\s+/g," ").replace(/[’']/g,"'").toLowerCase();
   if (t==="annee" || t==="année") return "Année";
-  if (t==="numero" || t==="numéro" || t==="n°" || t==="no" || t==="n°/numero") return "Numéro";
+  if (t==="numero" || t==="numéro" || t==="n°" || t==="no") return "Numéro";
   if (t.startsWith("titre")) return "Titre";
   if (t==="page" || t==="pages" || t==="page(s)") return "Page(s)";
   if (t.startsWith("auteur")) return "Auteur(s)";
@@ -303,7 +301,7 @@ async function saveToGitHubMerged(newRow){
   }
 }
 
-/* ========= Enregistrer tout le tableau (édition/suppression) ========= */
+/* ========= Enregistrer tout le tableau ========= */
 async function saveAllRowsToGithub(rows, message="commit groupé"){
   if (!GHTOKEN){ alert("🔐 Connectez-vous d’abord."); throw new Error("no token"); }
   const headers = { Authorization:`token ${GHTOKEN}`, "Accept":"application/vnd.github+json", "Content-Type":"application/json" };
@@ -313,7 +311,6 @@ async function saveAllRowsToGithub(rows, message="commit groupé"){
   showLoading(true);
   try {
     for (let attempt=1; attempt<=5; attempt++){
-      // lire dernier sha
       let sha=null;
       const get = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
       if (get.status===404) sha=null;
@@ -350,7 +347,7 @@ async function initCsvIfMissing(){
 /* ========= ÉDITION INLINE / SUPPRESSION ========= */
 window._inlineEdit = (idx) => {
   EDIT_INLINE_IDX = idx;
-  EDIT_INLINE_DRAFT = { ...ARTICLES[idx] };   // copie
+  EDIT_INLINE_DRAFT = { ...ARTICLES[idx] };
   render();
   setTimeout(()=> document.getElementById("ei-titre")?.focus(), 0);
 };
@@ -374,7 +371,6 @@ window._inlineSave = async () => {
   };
   if (!updated["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
 
-  // anti‑doublon (Année+Numéro+Titre)
   const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
   const newKey = key(updated);
   for (let i=0;i<ARTICLES.length;i++){
@@ -382,7 +378,6 @@ window._inlineSave = async () => {
     if (key(ARTICLES[i])===newKey){ alert("Doublon détecté (Année+Numéro+Titre)."); return; }
   }
 
-  // MAJ locale + UI
   pushUndo();
   ARTICLES[EDIT_INLINE_IDX] = updated;
   EDIT_INLINE_IDX = null; EDIT_INLINE_DRAFT = null;
@@ -420,14 +415,7 @@ window._delete = async (idx) => {
   } catch(e){ alert("Échec suppression : "+(e?.message||e)); }
 };
 
-/* ========= HANDLERS AJOUT / ENREG. ========= */
-window._save = async ()=>{ try{
-  if (!ARTICLES.length){ alert("Rien à enregistrer."); return; }
-  await saveToGitHubMerged(ARTICLES[0]); // simple test de commit
-} catch(e){ alert("Save: "+(e?.message||e)); } };
-
-window._init = async ()=>{ try{ await initCsvIfMissing(); }catch(e){ alert("Init: "+e.message); } };
-
+/* ========= AJOUT (réutilisé par le modal) ========= */
 window._add = async (ev)=>{ try{
   if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
   const get=id=>document.getElementById(id)?.value?.trim()||"";
@@ -436,7 +424,6 @@ window._add = async (ev)=>{ try{
               "Theme(s)":get("add-themes"), "Epoque":get("add-epoque") };
   if (!row["Titre"]) { alert("Le champ Titre est obligatoire."); return; }
 
-  // anti-doublon sur ajout
   const key = r => [r["Année"], r["Numéro"], r["Titre"]].map(v=>(v||"").toLowerCase()).join("¦");
   if (ARTICLES.some(r=>key(r)===key(row))) { alert("Doublon (Année+Numéro+Titre) — ajout annulé."); return; }
 
@@ -455,14 +442,12 @@ window._add = async (ev)=>{ try{
 window._toggleDraft = ()=>{
   DRAFT_MODE = !DRAFT_MODE;
 
-  // MAJ visuelle immédiate du bouton
   const tgl = document.getElementById("draft-toggle");
   if (tgl) {
     tgl.textContent = `📝 Mode brouillon : ${DRAFT_MODE ? "ON" : "OFF"}`;
     tgl.classList.toggle("on", DRAFT_MODE);
   }
 
-  // Conserver l'état d'Enregistrer tout basé sur PENDING_DIRTY
   const saveAllBtn = document.getElementById("draft-saveall");
   if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
 
@@ -500,11 +485,7 @@ window._snapshot = async ()=>{
 
   try{
     showLoading(true);
-    const body = {
-      message: `snapshot ${stamp}`,
-      content: encodeB64(toCSV(ARTICLES)),
-      branch: GITHUB_BRANCH
-    };
+    const body = { message: `snapshot ${stamp}`, content: encodeB64(toCSV(ARTICLES)), branch: GITHUB_BRANCH };
     const put = await fetch(url, { method:"PUT", headers, body: JSON.stringify(body) });
 
     if (!put.ok){
@@ -525,6 +506,51 @@ window._snapshot = async ()=>{
     alert("Échec snapshot : " + (e?.message||e));
   } finally {
     showLoading(false);
+  }
+};
+
+/* ========= MODAL D’AJOUT ========= */
+function openModal(){
+  const ov = document.getElementById("add-modal");
+  if (!ov) return;
+  ov.classList.remove("hidden");
+  ov.setAttribute("aria-hidden", "false");
+
+  // focus premier champ
+  setTimeout(()=> document.getElementById("add-annee")?.focus(), 0);
+
+  // fermer en cliquant à l’extérieur
+  const onClickOutside = (e)=>{
+    if (e.target === ov) { window._closeAddModal(); }
+  };
+  ov.addEventListener("click", onClickOutside, { once:true });
+
+  // fermer avec Echap
+  const onKey = (e)=>{
+    if (e.key === "Escape") { window._closeAddModal(); }
+  };
+  document.addEventListener("keydown", onKey, { once:true });
+}
+function closeModal(){
+  const ov = document.getElementById("add-modal");
+  if (!ov) return;
+  ov.classList.add("hidden");
+  ov.setAttribute("aria-hidden", "true");
+}
+window._openAddModal  = ()=> openModal();
+window._closeAddModal = ()=> closeModal();
+
+window._submitAddModal = async ()=>{
+  const titre = document.getElementById("add-titre")?.value?.trim() || "";
+  if (!titre) { alert("Le champ Titre est obligatoire."); document.getElementById("add-titre")?.focus(); return; }
+
+  try{
+    await window._add?.(); // lit les champs #add-...
+    closeModal();
+    ["add-annee","add-numero","add-titre","add-pages","add-auteurs","add-villes","add-themes","add-epoque"]
+      .forEach(id=>{ const el=document.getElementById(id); if (el) el.value=""; });
+  }catch(e){
+    console.warn(e);
   }
 };
 
@@ -554,6 +580,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   });
 
   updateUndoRedoButtons();
-  markDirty(false);         // initialise labels (brouillon OFF, saveAll disabled)
+  markDirty(false);
   setBadge("status-auth", !!GHTOKEN);
 });
