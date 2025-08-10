@@ -229,3 +229,24 @@ tr.editing .cell-input{
 
 /* ===== Minor polish ===== */
 .brand-link{ display:inline-block; line-height:0; }
+/* 1) Masquer définitivement les outils admin inutiles */
+#save-btn, #draft-toggle, #draft-saveall, #btn-undo, #btn-redo,
+button[onclick*="_init"], button[onclick*="_reloadRaw"] { display:none !important; }
+
+/* 2) Éviter le doublon de titre (on garde celui du bloc brand) */
+.shell > h1:not(.brand-sub) { display:none; }
+
+/* 3a) Si tu veux SUPPRIMER le grand filigrane */
+body { background-image: none !important; }
+
+/* 3b) …ou le rendre discret, desktop seulement (choisis 3a OU 3b) */
+.shell { position: relative; }
+@media (min-width: 900px){
+  .shell::before{
+    content:"";
+    position:absolute;
+    inset: 0; height: 200px; /* hauteur de la zone */
+    background: url("assets/logo-ahpv.png") left 12px top 8px / 520px auto no-repeat;
+    opacity: .06; pointer-events: none;
+  }
+}
