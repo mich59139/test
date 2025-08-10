@@ -251,3 +251,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   td.actions{ display:flex; gap:10px; align-items:center; }
   .col-titre{ word-break: break-word; }
 }
+/* === Compact mobile (<=600px) === */
+@media (max-width: 600px){
+  :root{ --tap: 40px; }                    /* cibles tactiles un peu moins hautes */
+  body{ font-size: 15px; }                 /* police globale légèrement réduite */
+  .brand-logo{ max-height: 20px; padding: 3px; }
+  .brand-sub{ font-size: 1.15rem; }
+
+  .panel{ padding: 8px 10px; }
+  .filters.panel label, .controls.panel button{ flex: 1 1 100%; } /* éléments sur une colonne */
+
+  /* Cartes plus serrées */
+  table tbody tr{ padding: 6px 8px; margin-bottom: 8px; }
+  table tbody td{
+    grid-template-columns: 36% 1fr;       /* libellé un peu plus étroit */
+    gap: 6px;
+    padding: 4px 0;
+  }
+}
