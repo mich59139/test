@@ -22,7 +22,7 @@
     <div class="controls panel">
       <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
       <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-      <button id="save-btn"   onclick="window._save?.()">💾 Enregistrer (test)</button>
+      <button id="save-btn" onclick="window._save?.()">💾 Enregistrer (test)</button>
       <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
       <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
 
@@ -38,25 +38,25 @@
     <div class="form-add panel" id="add-box">
       <h2>Ajouter un article</h2>
 
-      <input type="text" id="add-annee"   placeholder="Année"   list="dl-annee">
+      <input type="text" id="add-annee" placeholder="Année" list="dl-annee">
       <datalist id="dl-annee"></datalist>
 
-      <input type="text" id="add-numero"  placeholder="Numéro"  list="dl-numero">
+      <input type="text" id="add-numero" placeholder="Numéro" list="dl-numero">
       <datalist id="dl-numero"></datalist>
 
-      <input type="text" id="add-titre"   placeholder="Titre" required>
-      <input type="text" id="add-pages"   placeholder="Page(s)">
+      <input type="text" id="add-titre" placeholder="Titre" required>
+      <input type="text" id="add-pages" placeholder="Page(s)">
 
       <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
       <datalist id="dl-auteurs"></datalist>
 
-      <input type="text" id="add-villes"  placeholder="Ville(s)"  list="dl-villes">
+      <input type="text" id="add-villes" placeholder="Ville(s)" list="dl-villes">
       <datalist id="dl-villes"></datalist>
 
-      <input type="text" id="add-themes"  placeholder="Thème(s)"  list="dl-themes">
+      <input type="text" id="add-themes" placeholder="Thème(s)" list="dl-themes">
       <datalist id="dl-themes"></datalist>
 
-      <input type="text" id="add-epoque"  placeholder="Période"   list="dl-epoque">
+      <input type="text" id="add-epoque" placeholder="Période" list="dl-epoque">
       <datalist id="dl-epoque"></datalist>
 
       <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter</button>
