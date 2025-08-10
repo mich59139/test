@@ -8,17 +8,10 @@
 </head>
 <body>
   <div class="shell">
-    <div class="brand">
-  <img src="assets/logo-ahpv.png" alt="Amis de l’Histoire du Pays Vizillois" class="brand-logo"/>
-  <div class="brand-text">
-    <div class="brand-name">Amis de l’Histoire du Pays Vizillois</div>
-    <h1 class="brand-sub">Catalogue des Articles</h1>
-  </div>
-</div>
+    <h1>Catalogue des Articles</h1>
 
     <!-- Statuts -->
     <div class="badges panel">
-<button id="login-btn" onclick="window._login?.()">🔐 Connexion</button> 
       Auth: <span id="status-auth">❌</span>
       Repo: <span id="status-repo">❌</span>
       Branche: <span id="status-branch">❌</span>
@@ -27,8 +20,21 @@
 
     <!-- Commandes -->
     <div class="controls panel">
-  <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
-</div>
+      <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
+      <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+      <button id="save-btn" onclick="window._save?.()">💾 Enregistrer (test)</button>
+      <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
+      <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
+
+      <!-- Brouillon / commit groupé / historique -->
+      <button id="draft-toggle" onclick="window._toggleDraft?.()">📝 Mode brouillon : OFF</button>
+      <button id="draft-saveall" onclick="window._saveAll?.()" disabled>💾 Enregistrer tout</button>
+      <button onclick="window._undo?.()" disabled id="btn-undo">↩️ Annuler</button>
+      <button onclick="window._redo?.()" disabled id="btn-redo">↪️ Rétablir</button>
+
+      <!-- Ouvrir le modal d’ajout -->
+      <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
+    </div>
 
     <!-- Filtres -->
     <div class="filters panel">

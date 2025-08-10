@@ -207,15 +207,6 @@ tr.editing .cell-input{
 .help-footer .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
 
 
-/* ======= Branding ======= */
-.brand { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
-.brand-logo { max-height:28px; height:auto; width:auto; background:#fff; padding:6px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-.brand-text { display:flex; flex-direction:column; }
-.brand-name { font-weight:600; font-size:1.05rem; line-height:1.2; }
-.brand-sub { font-size:1.6rem; line-height:1.2; margin:0; }
-@media (max-width:600px){ .brand-logo{ max-height:22px; padding:4px; border-radius:8px } .brand-sub{ font-size:1.3rem } }
-
-
 /* ===== Accessibilité & Mobile ===== */
 :root{ --tap: 44px; }
 button, select, input[type="text"]{ min-height: var(--tap); }
@@ -234,7 +225,7 @@ table.responsive th, table.responsive td{ padding: 8px 10px; vertical-align: top
     box-shadow:0 1px 2px rgba(0,0,0,.04);
   }
   table.responsive td{
-    display:grid; grid-template-columns: 42% 1fr; gap:8px;
+    display:grid; grid-template-columns: 40% 1fr; gap:8px;
     padding:6px 0;
   }
   table.responsive td::before{
@@ -247,4 +238,5 @@ table.responsive th, table.responsive td{ padding: 8px 10px; vertical-align: top
   .filters.panel, .controls.panel, .badges.panel{ display:flex; flex-wrap:wrap; gap:8px; }
   .filters.panel label, .controls.panel button{ flex: 1 1 calc(50% - 8px); }
 }
+/* Ensure long titles wrap */
 .col-titre{ word-break: break-word; }
