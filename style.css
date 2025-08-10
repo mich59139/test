@@ -181,9 +181,9 @@ tr.editing .cell-input{
     background-color: #87CEFA;
     border: none;
     color: black;
-    padding: 6px 14px;
-    margin-left: 8px;
-    font-size: 16px;
+    padding: 8px 16px;
+    margin-right: 10px;
+    font-size: 18px;
     border-radius: 5px;
     cursor: pointer;
 }

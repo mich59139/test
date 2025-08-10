@@ -639,22 +639,30 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   setBadge("status-auth", !!GHTOKEN);
 });
 
-// Filtre numéro par année
+// Gestion bouton aide
+document.addEventListener('DOMContentLoaded', () => {
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const helpClose = document.getElementById('help-close');
+    if (helpBtn) helpBtn.onclick = () => helpModal.style.display = 'block';
+    if (helpClose) helpClose.onclick = () => helpModal.style.display = 'none';
+    window.onclick = (e) => { if (e.target == helpModal) helpModal.style.display = 'none'; };
+});
+
+// Filtre numéro par année basé sur articlesData complet
 document.getElementById('filter-annee')?.addEventListener('change', function() {
     const annee = this.value;
     const numeroSelect = document.getElementById('filter-numero');
     if (!numeroSelect) return;
 
-    const allNumeros = Array.from(numeroSelect.options).map(o => o.value);
     numeroSelect.innerHTML = '';
+    numeroSelect.appendChild(new Option('', ''));
 
-    const filteredNumeros = !annee ? allNumeros : allNumeros.filter(num => {
-        const row = articlesData.find(r => r['Année'] == annee && r['Numéro'] == num);
-        return row;
-    });
+    const filteredNumeros = articlesData
+        .filter(r => !annee || r['Année'] == annee)
+        .map(r => r['Numéro']);
 
     const uniqueNumeros = [...new Set(filteredNumeros)];
-    numeroSelect.appendChild(new Option('', ''));
     uniqueNumeros.forEach(num => {
         if (num) numeroSelect.appendChild(new Option(num, num));
     });
