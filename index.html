@@ -21,10 +21,10 @@
     <!-- Commandes -->
     <div class="controls panel">
       <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
-      
-      
-      
-      
+      <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
+      <button id="save-btn" onclick="window._save?.()">💾 Enregistrer (test)</button>
+      <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
+      <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
 
       <!-- Brouillon / commit groupé / historique -->
       <button id="draft-toggle" onclick="window._toggleDraft?.()">📝 Mode brouillon : OFF</button>
@@ -54,6 +54,7 @@
       <label>Recherche :
         <input type="text" id="search" placeholder="Chercher dans tous les champs">
       </label>
+          <button id="help-btn" class="help-button">❓ Aide</button>
     </div>
 
     <!-- Tableau -->
@@ -152,5 +153,27 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="app.js"></script>
+
+  <!-- Modal Aide -->
+  <div id="help-modal" class="help-overlay hidden" aria-hidden="true">
+    <div class="help-modal">
+      <div class="help-header">
+        <h3>Guide d’utilisation</h3>
+        <button id="help-close" class="modal-close" aria-label="Fermer">✖</button>
+      </div>
+      <div class="help-body">
+        <p><strong>Rechercher</strong> : utilisez le champ « Recherche » pour chercher dans tous les champs (titre, auteurs, villes, thèmes, période…).</p>
+        <p><strong>Filtres</strong> : choisissez une <em>Année</em> pour restreindre les résultats. Le menu <em>Numéro</em> se mettra automatiquement à jour pour ne proposer que les numéros existants dans cette année.</p>
+        <p><strong>Trier</strong> : cliquez sur les en-têtes de colonnes (Année, Numéro, Titre, etc.). Cliquez à nouveau pour inverser l’ordre.</p>
+        <p><strong>Pagination</strong> : utilisez « Afficher » pour changer le nombre de lignes visibles (50, 100, Tout) puis naviguez avec Précédent/Suivant.</p>
+        <p><strong>Ajouter un article</strong> : bouton « ➕ Ajouter un article ». Les listes déroulantes proposent automatiquement les valeurs déjà présentes (sans doublons).</p>
+        <p><strong>Édition/Suppression</strong> : double‑cliquez sur une ligne pour éditer. Bouton 🗑️ pour supprimer une ligne.</p>
+      </div>
+      <div class="help-footer">
+        <button id="help-ok" class="primary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

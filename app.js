@@ -638,3 +638,37 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   markDirty(false);
   setBadge("status-auth", !!GHTOKEN);
 });
+
+
+// ===== Aide (modal) =====
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("help-btn");
+  const ov  = document.getElementById("help-modal");
+  const closeBtn = document.getElementById("help-close");
+  const okBtn = document.getElementById("help-ok");
+  if (btn && ov){
+    btn.addEventListener("click", ()=>{ ov.classList.remove("hidden"); ov.setAttribute("aria-hidden","false"); });
+  }
+  const close = ()=>{ if (!ov) return; ov.classList.add("hidden"); ov.setAttribute("aria-hidden","true"); };
+  if (closeBtn) closeBtn.addEventListener("click", close);
+  if (okBtn) okBtn.addEventListener("click", close);
+  if (ov) ov.addEventListener("click", (e)=>{ if (e.target===ov) close(); });
+  document.addEventListener("keydown", (e)=>{ if (e.key==="Escape") close(); });
+});
+
+
+function rebuildNumeroOptions(selectedYear){
+  const nu = document.getElementById("filter-numero");
+  if (!nu) return;
+  // Collect numbers from full ARTICLES dataset
+  const vals = ARTICLES
+    .filter(r => !selectedYear || r["Année"] === selectedYear)
+    .map(r => (r["Numéro"]||"").toString().trim())
+    .filter(Boolean);
+  const uniq = [...new Set(vals)].sort((a,b)=>(""+a).localeCompare(""+b,"fr",{numeric:true,sensitivity:"base"}));
+  const current = nu.value;
+  nu.innerHTML = '<option value="">(tous)</option>' + uniq.map(v=>`<option>${v}</option>`).join("");
+  // If previous selection still valid, keep it
+  if (current && (!selectedYear || uniq.includes(current))) nu.value = current;
+  else nu.value = "";
+}
