@@ -32,34 +32,9 @@
       <button onclick="window._undo?.()" disabled id="btn-undo">↩️ Annuler</button>
       <button onclick="window._redo?.()" disabled id="btn-redo">↪️ Rétablir</button>
       <button onclick="window._snapshot?.()">📸 Snapshot</button>
-    </div>
 
-    <!-- Ajout d'article (avec suggestions) -->
-    <div class="form-add panel" id="add-box">
-      <h2>Ajouter un article</h2>
-
-      <input type="text" id="add-annee" placeholder="Année" list="dl-annee">
-      <datalist id="dl-annee"></datalist>
-
-      <input type="text" id="add-numero" placeholder="Numéro" list="dl-numero">
-      <datalist id="dl-numero"></datalist>
-
-      <input type="text" id="add-titre" placeholder="Titre" required>
-      <input type="text" id="add-pages" placeholder="Page(s)">
-
-      <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
-      <datalist id="dl-auteurs"></datalist>
-
-      <input type="text" id="add-villes" placeholder="Ville(s)" list="dl-villes">
-      <datalist id="dl-villes"></datalist>
-
-      <input type="text" id="add-themes" placeholder="Thème(s)" list="dl-themes">
-      <datalist id="dl-themes"></datalist>
-
-      <input type="text" id="add-epoque" placeholder="Période" list="dl-epoque">
-      <datalist id="dl-epoque"></datalist>
-
-      <button id="add-btn" type="button" onclick="window._add?.(event)">Ajouter</button>
+      <!-- Ouvrir le modal d’ajout -->
+      <button onclick="window._openAddModal?.()">➕ Ajouter un article</button>
     </div>
 
     <!-- Filtres -->
@@ -114,6 +89,66 @@
   <div id="loading" class="loading hidden">
     <div class="spinner"></div>
     <div>Sauvegarde / rechargement…</div>
+  </div>
+
+  <!-- Modal d’ajout -->
+  <div id="add-modal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
+      <div class="modal-header">
+        <h3 id="add-modal-title">Nouvel article</h3>
+        <button class="modal-close" aria-label="Fermer" onclick="window._closeAddModal?.()">✖</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid">
+          <label>
+            <span>Année</span>
+            <input type="text" id="add-annee" placeholder="Année" list="dl-annee">
+          </label>
+          <label>
+            <span>Numéro</span>
+            <input type="text" id="add-numero" placeholder="Numéro" list="dl-numero">
+          </label>
+          <label class="full">
+            <span>Titre</span>
+            <input type="text" id="add-titre" placeholder="Titre" required>
+          </label>
+          <label>
+            <span>Page(s)</span>
+            <input type="text" id="add-pages" placeholder="Page(s)">
+          </label>
+          <label>
+            <span>Auteur(s)</span>
+            <input type="text" id="add-auteurs" placeholder="Auteur(s)" list="dl-auteurs">
+          </label>
+          <label>
+            <span>Ville(s)</span>
+            <input type="text" id="add-villes" placeholder="Ville(s)" list="dl-villes">
+          </label>
+          <label>
+            <span>Thème(s)</span>
+            <input type="text" id="add-themes" placeholder="Thème(s)" list="dl-themes">
+          </label>
+          <label>
+            <span>Période</span>
+            <input type="text" id="add-epoque" placeholder="Période" list="dl-epoque">
+          </label>
+        </div>
+
+        <!-- Datalists -->
+        <datalist id="dl-annee"></datalist>
+        <datalist id="dl-numero"></datalist>
+        <datalist id="dl-auteurs"></datalist>
+        <datalist id="dl-villes"></datalist>
+        <datalist id="dl-themes"></datalist>
+        <datalist id="dl-epoque"></datalist>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary" onclick="window._closeAddModal?.()">Annuler</button>
+        <button id="add-btn" class="primary" onclick="window._submitAddModal?.()">Ajouter</button>
+      </div>
+    </div>
   </div>
 
   <!-- PapaParse -->
