@@ -205,3 +205,11 @@ tr.editing .cell-input{
 .help-body{ padding:14px 16px; line-height:1.6 }
 .help-body p{ margin:8px 0 }
 .help-footer .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
+
+/* ======= Branding ======= */
+.brand { display:flex; align-items:center; gap:16px; margin-bottom:12px; flex-wrap:wrap; }
+.brand-logo { max-height:56px; height:auto; width:auto; border-radius:8px; }
+.brand-text { display:flex; flex-direction:column; }
+.brand-name { font-weight:600; font-size:1.05rem; line-height:1.2; }
+.brand-sub { font-size:1.6rem; line-height:1.2; margin:0; }
+@media (max-width:600px){ .brand-logo{ max-height:44px } .brand-sub{ font-size:1.3rem } }

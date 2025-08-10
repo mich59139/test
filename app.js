@@ -309,6 +309,8 @@ async function githubLoginInline(){
   localStorage.setItem("ghtoken", GHTOKEN);
   setBadge("status-auth", true);
   alert("Connecté à GitHub ✅");
+
+  try { await saveAllRowsToGithub(ARTICLES, "commit auto après connexion"); alert("Connecté à GitHub ✅\nModifications locales enregistrées."); } catch(e) { console.warn(e); alert("Connecté à GitHub ✅"); }
 }
 window._login  = async ()=>{ try{ await githubLoginInline(); }catch(e){ alert(e); } };
 window._logout = ()=>{ localStorage.removeItem("ghtoken"); GHTOKEN=null; setBadge("status-auth", false); alert("Déconnecté."); };
@@ -480,14 +482,14 @@ window._delete = async (idx) => {
 
     // 2) Pas de token => local uniquement
     if (!GHTOKEN){
-      alert("Supprimé localement. Cliquez 🔐 puis « Enregistrer tout » pour committer.");
+      alert("Supprimé localement. Cliquez 🔐 pour enregistrer maintenant.");
       return;
     }
 
     // 3) Mode brouillon => marquer comme modifié, pas de commit immédiat
     if (DRAFT_MODE){
       markDirty(true);
-      alert("Suppression stockée en brouillon. Cliquez « Enregistrer tout » pour committer.");
+      alert("Suppression stockée en brouillon. Cliquez 🔐 pour enregistrer maintenant.");
       return;
     }
 
@@ -519,8 +521,8 @@ window._add = async (ev)=>{ try{
   pushUndo();
   ARTICLES.unshift(row); currentPage=1; render(); populateDatalists(); updateUndoRedoButtons();
 
-  if (!GHTOKEN){ alert("Ajout local OK. Cliquez 🔐 puis « Enregistrer tout » pour committer."); return; }
-  if (DRAFT_MODE){ markDirty(true); alert("Ajout stocké en brouillon. Cliquez « Enregistrer tout » pour committer."); return; }
+  if (!GHTOKEN){ alert("Ajout local OK. Cliquez 🔐 pour enregistrer maintenant."); return; }
+  if (DRAFT_MODE){ markDirty(true); alert("Ajout stocké en brouillon. Cliquez 🔐 pour enregistrer maintenant."); return; }
 
   const btn=document.getElementById("add-btn"); if (btn) btn.disabled=true;
   try { await saveToGitHubMerged(row); }
@@ -538,7 +540,7 @@ window._toggleDraft = ()=>{
   const saveAllBtn = document.getElementById("draft-saveall");
   if (saveAllBtn) saveAllBtn.disabled = !PENDING_DIRTY;
   alert(DRAFT_MODE
-    ? "Mode brouillon activé : vos changements restent locaux. Cliquez « Enregistrer tout » pour committer."
+    ? "Mode brouillon activé : vos changements restent locaux. Cliquez 🔐 pour enregistrer maintenant."
     : "Mode brouillon désactivé : les actions peuvent committer immédiatement.");
 };
 
