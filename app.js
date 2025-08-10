@@ -638,3 +638,24 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   markDirty(false);
   setBadge("status-auth", !!GHTOKEN);
 });
+
+// Filtre numéro par année
+document.getElementById('filter-annee')?.addEventListener('change', function() {
+    const annee = this.value;
+    const numeroSelect = document.getElementById('filter-numero');
+    if (!numeroSelect) return;
+
+    const allNumeros = Array.from(numeroSelect.options).map(o => o.value);
+    numeroSelect.innerHTML = '';
+
+    const filteredNumeros = !annee ? allNumeros : allNumeros.filter(num => {
+        const row = articlesData.find(r => r['Année'] == annee && r['Numéro'] == num);
+        return row;
+    });
+
+    const uniqueNumeros = [...new Set(filteredNumeros)];
+    numeroSelect.appendChild(new Option('', ''));
+    uniqueNumeros.forEach(num => {
+        if (num) numeroSelect.appendChild(new Option(num, num));
+    });
+});
