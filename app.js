@@ -383,3 +383,6 @@ async function init(){
 function showLoading(b){ document.getElementById("loading").classList.toggle("hidden", !b) }
 
 document.addEventListener("DOMContentLoaded", init);
+document.getElementById("add-cancel")?.addEventListener("click", () => {
+  document.getElementById("add-modal")?.close();
+});
