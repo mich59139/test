@@ -244,7 +244,7 @@ body{ background-image:none !important; }
 
 /* 2) Réduire le logo du header */
 .brand-logo { max-height: 18px; }
-@media (max-width:600px){ .brand-logo { max-height: 16px; } }
+@media (max-width:600px){ .brand-logo { max-height: 25px; } }
 /* === Thème Sable (copier-coller en bas de style.css) ======================= */
 /* Couleurs */
 :root{
