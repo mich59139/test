@@ -29,12 +29,16 @@
     </div>
 
     <!-- Commandes -->
+    <!-- Exports -->
+<div class="exports panel">
+  <button id="export-copy"  class="has-tip" data-tip="Copier les lignes filtrées (TSV)">📋 Copier</button>
+  <button id="export-csv"   class="has-tip" data-tip="Télécharger CSV (filtré)">⬇️ CSV</button>
+  <button id="export-xlsx"  class="has-tip" data-tip="Télécharger Excel (filtré)">⬇️ Excel</button>
+  <button id="export-print" class="has-tip" data-tip="Imprimer la liste (A4)">🖨️ Imprimer</button>
+</div>
     <div class="controls panel">
       <button onclick="window._login?.()">🔐 Se connecter GitHub</button>
       <button id="logout-btn" onclick="window._logout?.()">🚪 Déconnexion</button>
-      <button id="save-btn" onclick="window._save?.()">💾 Enregistrer (test)</button>
-      <button onclick="window._init?.()">🧩 Créer data/articles.csv</button>
-      <button onclick="window._reloadRaw?.()">🔄 Recharger</button>
 
       <!-- Brouillon / commit groupé / historique -->
       <button id="draft-toggle" onclick="window._toggleDraft?.()">📝 Mode brouillon : OFF</button>
