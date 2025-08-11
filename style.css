@@ -239,3 +239,9 @@ button[onclick*="_init"], button[onclick*="_reloadRaw"] { display:none !importan
 
 /* (Option) si le filigrane vient d'un background: */
 body{ background-image:none !important; }
+/* 1) Enlever le doublon de titre (on garde celui du bloc brand) */
+.shell > h1:not(.brand-sub){ display:none; }
+
+/* 2) Réduire le logo du header */
+.brand-logo { max-height: 18px; }
+@media (max-width:600px){ .brand-logo { max-height: 16px; } }
