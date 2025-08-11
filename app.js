@@ -757,3 +757,59 @@ function rebuildNumeroOptions(selectedYear){
     document.getElementById("export-print")?.addEventListener("click", ()=>window.print());
   });
 })();
+// === Reset auto des filtres quand on revient sur "(toutes)" ==================
+(function () {
+  function callRefreshNumeroOptions() {
+    if (typeof refreshNumeroOptions === "function") refreshNumeroOptions();
+  }
+
+  function resetForAllYears() {
+    const y = document.getElementById("filter-annee");
+    const n = document.getElementById("filter-numero");
+    const q = document.getElementById("search");
+    // Année = (toutes) -> on vide Numéro + Recherche
+    if (y && y.value === "") {
+      if (n) n.value = "";
+      if (q && q.value) q.value = "";
+      callRefreshNumeroOptions();
+      if (typeof sortCol !== "undefined") { sortCol = null; sortDir = "asc"; }
+      currentPage = 1; render();
+    } else {
+      // Année spécifique -> on recalcule les numéros disponibles
+      callRefreshNumeroOptions();
+      currentPage = 1; render();
+    }
+  }
+
+  function resetForAllNumbers() {
+    const n = document.getElementById("filter-numero");
+    if (n && n.value === "") { currentPage = 1; render(); }
+  }
+
+  function resetWhenSearchCleared() {
+    const q = document.getElementById("search");
+    if (q && q.value.trim() === "") { currentPage = 1; render(); }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("filter-annee")?.addEventListener("change", resetForAllYears);
+    document.getElementById("filter-numero")?.addEventListener("change", resetForAllNumbers);
+    document.getElementById("search")?.addEventListener("input", () => {
+      // Quand on efface complètement la recherche
+      resetWhenSearchCleared();
+    });
+  });
+
+  // Bouton optionnel "Réinitialiser" si tu en ajoutes un dans le HTML
+  window.resetAllFilters = function () {
+    const y = document.getElementById("filter-annee");
+    const n = document.getElementById("filter-numero");
+    const q = document.getElementById("search");
+    if (y) y.value = "";
+    if (n) n.value = "";
+    if (q) q.value = "";
+    callRefreshNumeroOptions();
+    if (typeof sortCol !== "undefined") { sortCol = null; sortDir = "asc"; }
+    currentPage = 1; render();
+  };
+})();
