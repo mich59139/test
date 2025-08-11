@@ -673,3 +673,32 @@ function rebuildNumeroOptions(selectedYear){
   if (current && (!selectedYear || uniq.includes(current))) nu.value = current;
   else nu.value = "";
 }
+
+
+/* ===== EXPORTS ===== */
+function getFilteredRows(){
+  const year = document.getElementById("filter-annee")?.value || "";
+  const num  = document.getElementById("filter-numero")?.value || "";
+  const q    = (document.getElementById("search")?.value || "").toLowerCase();
+  let rows = ARTICLES.map((r,i)=>({ ...r, __idx:i }));
+  if (year) rows = rows.filter(r => (r["Année"]||"") === year);
+  if (num)  rows = rows.filter(r => ((""+(r["Numéro"]||"")).trim() === (""+num).trim()));
+  if (q)    rows = rows.filter(r => Object.values(r).some(v => (v??"").toString().toLowerCase().includes(q)));
+  if (sortCol){
+    const factor = (sortDir==="desc") ? -1 : 1;
+    rows.sort((a,b)=> (""+(a[sortCol]??"")).localeCompare(""+(b[sortCol]??""), "fr", {numeric:true,sensitivity:"base"}) * factor);
+  }
+  return rows;
+}
+const CSV_HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
+function csvEscape(s){ s = (s==null ? "" : (""+s)).replaceAll('"','""'); return /[",\n]/.test(s) ? `"${s}"` : s; }
+function toCSV(rows){ const head = CSV_HEADERS.join(","); const body = rows.map(r => CSV_HEADERS.map(h => csvEscape(r[h]??"")).join(",")).join("\n"); return head + "\n" + body + "\n"; }
+function toTSV(rows){ const head = CSV_HEADERS.join("\t"); const body = rows.map(r => CSV_HEADERS.map(h => (r[h]??"")).join("\t")).join("\n"); return head + "\n" + body + "\n"; }
+function download(name, text, mime="text/csv;charset=utf-8"){ const blob = new Blob([text], {type: mime}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href); }
+async function ensureXLSX(){ if (window.XLSX) return; await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+document.addEventListener("DOMContentLoaded", ()=>{
+  document.getElementById("export-copy")?.addEventListener("click", async ()=>{ const rows = getFilteredRows(); const tsv = toTSV(rows); try { await navigator.clipboard.writeText(tsv); alert(`Copié : ${rows.length} ligne(s).`); } catch { download("articles_filtrés.tsv", tsv, "text/tab-separated-values;charset=utf-8"); } });
+  document.getElementById("export-csv")?.addEventListener("click", ()=>{ const rows = getFilteredRows(); const csv = toCSV(rows); download("articles_filtrés.csv", csv); });
+  document.getElementById("export-xlsx")?.addEventListener("click", async ()=>{ await ensureXLSX(); const rows = getFilteredRows(); const data = rows.map(r=>{ const o={}; CSV_HEADERS.forEach(h=>o[h]=r[h]??""); return o; }); const wb = XLSX.utils.book_new(); const ws = XLSX.utils.json_to_sheet(data, {cellDates:false}); XLSX.utils.book_append_sheet(wb, ws, "Articles"); XLSX.writeFile(wb, "articles_filtrés.xlsx"); });
+  document.getElementById("export-print")?.addEventListener("click", ()=> window.print());
+});

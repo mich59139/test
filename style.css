@@ -207,25 +207,49 @@ tr.editing .cell-input{
 .help-footer .primary{ background:var(--accent); color:#fff; border-color:#1d4ed8 }
 
 
-/* ===== Desktop sticky header ===== */
-.table-wrap{ overflow:auto; }
-@media (min-width: 801px){
-  thead th{ position: sticky; top: 0; background: #fff; z-index: 2; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+/* ============ Theme: Sand (cartographie) ============ */
+.theme-sand{
+  --sand-bg:        #f7f1d5;
+  --sand-panel:     #fbf6e3;
+  --sand-head:      #efe7c8;
+  --sand-row:       #f9f2d8;
+  --sand-border:    #d8ccaa;
+  --sand-text:      #212121;
+  --sand-muted:     #6b7280;
+  --sand-btn-bg:    #f3f4f6;
+  --sand-btn-border:#d1d5db;
+  --sand-btn-hover: #e5e7eb;
 }
-
-/* ===== Print stylesheet (A4) ===== */
-@media print{
-  @page { size: A4 portrait; margin: 12mm; }
-  body{ font-size: 11pt; color: #000; }
-  .badges, .filters, .controls, .pager, .loading, .modal, .help-panel{ display: none !important; }
-  .brand{ margin-bottom: 8mm; }
-  .brand-logo{ max-height: 24px; background: none; padding: 0; box-shadow: none; }
-  table{ width: 100%; border-collapse: collapse; }
-  thead{ position: static; clip:auto; height:auto; margin:0; overflow:visible; padding:0; width:auto; }
-  thead th, tbody td{ border: 1px solid #444; padding: 4px 6px; }
-  tbody tr{ display: table-row; box-shadow: none; border: 0; padding: 0; margin: 0; }
-  tbody td{ display: table-cell; grid-template-columns: none; gap: 0; }
-}
-
-/* ===== Minor polish ===== */
-.brand-link{ display:inline-block; line-height:0; }
+.theme-sand body{ background: var(--sand-bg); color: var(--sand-text); }
+.theme-sand .shell{ background: var(--sand-panel); border-radius: 14px; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 6px 24px rgba(0,0,0,.06); padding-top: 18px; }
+.theme-sand .panel{ background: var(--sand-panel); border: 1px solid var(--sand-border); }
+.theme-sand .badges.panel{ background: transparent; border: 0; }
+.theme-sand table{ background: transparent; border-collapse: separate; border-spacing: 0; }
+.theme-sand thead th{ background: var(--sand-head); border-top: 1px solid var(--sand-border); border-bottom: 1px solid var(--sand-border); }
+.theme-sand thead th:first-child{ border-left: 1px solid var(--sand-border); border-top-left-radius: 10px; }
+.theme-sand thead th:last-child{ border-right: 1px solid var(--sand-border); border-top-right-radius: 10px; }
+.theme-sand tbody tr{ background: #fff; }
+.theme-sand tbody tr:nth-child(even){ background: var(--sand-row); }
+.theme-sand tbody td{ border-bottom: 1px solid var(--sand-border); }
+.theme-sand tbody tr:last-child td{ border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+.theme-sand .exports.panel button, .theme-sand .controls.panel button, .theme-sand button{ background: var(--sand-btn-bg); border: 1px solid var(--sand-btn-border); color: var(--sand-text); padding: 6px 10px; border-radius: 10px; box-shadow: 0 1px 0 rgba(0,0,0,.02); }
+.theme-sand .exports.panel button:hover, .theme-sand .controls.panel button:hover, .theme-sand button:hover{ background: var(--sand-btn-hover); }
+.theme-sand select, .theme-sand input[type="text"]{ background: #fff; border: 1px solid var(--sand-border); border-radius: 10px; padding: 6px 8px; }
+.theme-sand .brand-sub{ font-size: 1.6rem; } .theme-sand .brand-name{ color: var(--sand-muted); }
+/* Sticky header desktop */
+@media (min-width: 801px){ thead th{ position: sticky; top: 0; background: var(--sand-head); z-index: 2; box-shadow: 0 1px 0 rgba(0,0,0,.08); } }
+/* Print stylesheet */
+@media print{ @page { size: A4 portrait; margin: 12mm; } body{ background:#fff; } .badges, .filters, .controls, .exports, .pager, .loading, .modal, .help-panel{ display:none !important; } table{ width:100%; border-collapse: collapse; } thead{ position: static !important; } thead th, tbody td{ border:1px solid #444; padding:4px 6px; } }
+/* Exports toolbar */
+.exports.panel{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.exports.panel button{ border:1px solid var(--sand-btn-border); background:#fff; padding:8px 10px; border-radius:10px; }
+@media (max-width:600px){ .exports.panel button{ flex:1 1 calc(50% - 8px); } }
+/* Tooltips */
+.has-tip{ position:relative; }
+.has-tip[data-tip]:hover::after, .has-tip[data-tip]:focus-visible::after{ content: attr(data-tip); position:absolute; left:50%; transform: translateX(-50%); bottom: calc(100% + 8px); background:#111; color:#fff; font-size:12px; line-height:1.2; padding:6px 8px; border-radius:8px; white-space:nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.18); z-index:10; }
+.has-tip[data-tip]:hover::before, .has-tip[data-tip]:focus-visible::before{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom: calc(100% + 4px); border:6px solid transparent; border-top-color:#111; }
+@media (pointer: coarse){ .has-tip[data-tip]::before, .has-tip[data-tip]::after{ display:none; } }
+/* Compact mobile */
+@media (max-width: 600px){ body{ font-size: 15px; } table tbody tr{ padding: 6px 8px; margin-bottom: 8px; } table tbody td{ grid-template-columns: 36% 1fr; gap: 6px; padding: 4px 0; } .brand-logo{ max-height: 18px; padding: 3px; } .brand-sub{ font-size: 1.2rem; } }
+/* Hide legacy admin buttons just in case */
+#save-btn, #draft-toggle, #draft-saveall, #btn-undo, #btn-redo, button[onclick*="_init"], button[onclick*="_reloadRaw"]{ display:none !important; }
