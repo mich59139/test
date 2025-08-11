@@ -229,3 +229,13 @@ tr.editing .cell-input{
 
 /* ===== Minor polish ===== */
 .brand-link{ display:inline-block; line-height:0; }
+/* Masquer définitivement les outils admin */
+#save-btn, #draft-toggle, #draft-saveall, #btn-undo, #btn-redo,
+button[onclick*="_init"], button[onclick*="_reloadRaw"] { display:none !important; }
+
+/* Réduire/supprimer le grand filigrane */
+.shell::before{ background-size: 360px auto !important; opacity:.05 !important; }
+@media (max-width:900px){ .shell::before{ display:none !important; } }
+
+/* (Option) si le filigrane vient d'un background: */
+body{ background-image:none !important; }
