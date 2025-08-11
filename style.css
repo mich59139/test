@@ -331,3 +331,8 @@ button[onclick*="_init"], button[onclick*="_reloadRaw"]{ display:none !important
 /* .shell::before{ background-size: 360px auto; opacity:.05; } */
 /* @media (max-width:900px){ .shell::before{ display:none; } } */
 /* ========================================================================== */
+/* Exports toolbar */
+.exports.panel{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+.exports.panel button{ border:1px solid var(--sand-btn-border, #d1d5db); background:#fff; padding:8px 10px; border-radius:10px; }
+@media (max-width:600px){ .exports.panel button{ flex:1 1 calc(50% - 8px); } }
+@media print{ .exports.panel{ display:none !important; } }
