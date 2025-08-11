@@ -673,3 +673,87 @@ function rebuildNumeroOptions(selectedYear){
   if (current && (!selectedYear || uniq.includes(current))) nu.value = current;
   else nu.value = "";
 }
+// === Numéro lié à l'Année (liste triée) ===
+(function(){
+  function uniqSorted(arr){
+    return Array.from(new Set(arr)).sort((a,b)=>(""+a).localeCompare(""+b,"fr",{numeric:true}));
+  }
+  function refreshNumeroOptions(){
+    const selYear=document.getElementById("filter-annee");
+    const selNum=document.getElementById("filter-numero");
+    if (!selYear || !selNum) return;
+    const year=selYear.value;
+    let nums=ARTICLES
+      .filter(r => !year || (r["Année"]||"")==year)
+      .map(r => (r["Numéro"]==null?"":(""+r["Numéro"]).trim()))
+      .filter(Boolean);
+    nums = uniqSorted(nums);
+    const cur=selNum.value;
+    selNum.innerHTML = '<option value="">(tous)</option>' + nums.map(n=>`<option value="${n}">${n}</option>`).join("");
+    if (nums.includes(cur)) selNum.value=cur; else selNum.value="";
+  }
+  document.addEventListener("DOMContentLoaded", ()=>{
+    document.getElementById("filter-annee")?.addEventListener("change", refreshNumeroOptions);
+    refreshNumeroOptions();
+  });
+})();
+
+// === EXPORTS (lignes filtrées) ===
+(function(){
+  if (window.__exportsHooked__) return; window.__exportsHooked__=true;
+
+  const CSV_HEADERS = ["Année","Numéro","Titre","Page(s)","Auteur(s)","Ville(s)","Theme(s)","Epoque"];
+
+  function getFilteredRows(){
+    const year = document.getElementById("filter-annee")?.value || "";
+    const num  = document.getElementById("filter-numero")?.value || "";
+    const q    = (document.getElementById("search")?.value || "").toLowerCase();
+    let rows = ARTICLES.slice();
+
+    if (year) rows = rows.filter(r => (r["Année"]||"") === year);
+    if (num)  rows = rows.filter(r => (""+(r["Numéro"]||"")).trim() === (""+num).trim());
+    if (q)    rows = rows.filter(r => Object.values(r).some(v => (v??"").toString().toLowerCase().includes(q)));
+
+    if (typeof sortCol !== "undefined" && sortCol){
+      const dir = (sortDir==="desc") ? -1 : 1;
+      rows.sort((a,b)=> (""+(a[sortCol]??"")).localeCompare(""+(b[sortCol]??""),"fr",{numeric:true,sensitivity:"base"})*dir);
+    }
+    return rows;
+  }
+
+  function csvEscape(s){ s=(s==null?"":(""+s)).replaceAll('"','""'); return /[",\n]/.test(s) ? `"${s}"` : s; }
+  function toCSV(rows){ return CSV_HEADERS.join(",")+"\n"+rows.map(r=>CSV_HEADERS.map(h=>csvEscape(r[h]??"")).join(",")).join("\n")+"\n"; }
+  function toTSV(rows){ return CSV_HEADERS.join("\t")+"\n"+rows.map(r=>CSV_HEADERS.map(h=>r[h]??"").join("\t")).join("\n")+"\n"; }
+
+  async function ensureXLSX(){
+    if (window.XLSX) return;
+    await new Promise((res,rej)=>{
+      const s=document.createElement("script");
+      s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
+    });
+  }
+  function download(name, text, mime="text/csv;charset=utf-8"){
+    const blob=new Blob([text],{type:mime});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    document.getElementById("export-copy")?.addEventListener("click", async ()=>{
+      const tsv=toTSV(getFilteredRows());
+      try{ await navigator.clipboard.writeText(tsv); alert("Copié !"); }
+      catch{ download("articles_filtrés.tsv", tsv, "text/tab-separated-values;charset=utf-8"); }
+    });
+    document.getElementById("export-csv")?.addEventListener("click", ()=>{
+      download("articles_filtrés.csv", toCSV(getFilteredRows()));
+    });
+    document.getElementById("export-xlsx")?.addEventListener("click", async ()=>{
+      await ensureXLSX();
+      const data=getFilteredRows().map(r=>{const o={}; for(const h of CSV_HEADERS) o[h]=r[h]??""; return o;});
+      const wb=XLSX.utils.book_new();
+      const ws=XLSX.utils.json_to_sheet(data); XLSX.utils.book_append_sheet(wb, ws, "Articles");
+      XLSX.writeFile(wb, "articles_filtrés.xlsx");
+    });
+    document.getElementById("export-print")?.addEventListener("click", ()=>window.print());
+  });
+})();
