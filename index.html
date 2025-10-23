@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <title>Catalogue AHPV — Carte interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet local to CDN -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet via cdnjs -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-YF34qQbT1KO4r/J/JmI+uLiYxlf5I0p4pwSXrTJ0cbCv/K4LGGYz8RruvU1varIatJCZ4z3KUJEMwyW+1FO7kw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
-    :root { --bg:#f8f8f8; --fg:#222; --brand:#1474d4;}
+    :root{--bg:#f8f8f8;--fg:#222;--brand:#1474d4;}
     html,body{height:100%;margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg);}
     header{padding:.75rem 1rem;background:var(--brand);color:#fff;font-size:1.25rem;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 14px rgba(0,0,0,.12);}
     header img{height:32px;}
@@ -22,96 +22,58 @@
   </style>
 </head>
 <body>
-  <header>
-    <img src="assets/logo_ahpv.png" alt="AHPV" />
-    Catalogue des articles — Carte interactive
-  </header>
-  <main>
-    <div id="map"></div>
-    <aside id="sidebar"></aside>
-  </main>
+  <header><img src="assets/logo_ahpv.png" alt="AHPV" />Catalogue des articles — Carte interactive</header>
+  <main><div id="map"></div><aside id="sidebar"></aside></main>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/papaparse@5.4.3/dist/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-gZwIG9x3wUXg2mLb6xR0QXKyYV+3yu4Ajexlai+o8AiZd5EidK6tJ4G2R1/w0Xp38Pv5Q7yuR2IY6VmMXyRMQw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha512-zLqU9jwELyCK+MYnVS0zmP+tLN+38CEuzPuoYeYUXZ6P+IWI+bcsRKFS2miK+4nvpHxRP+f3iLUsxg9Y5lia+w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
     const CSV_PATH = "data/articles.csv";
     const COORDS_PATH = "data/villes_coords.json";
 
-    const map = L.map("map", {
-      center: [45.1, 5.7],
-      zoom: 9,
-      minZoom: 6,
-      zoomControl: true,
-    });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(map);
+    const map = L.map("map",{center:[45.1,5.7],zoom:9,minZoom:6,zoomControl:true});
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
 
-    const LOCAL_KEY = "ahpv_city_coords_v1";
-    let cityCoords = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}");
+    const LOCAL_KEY="ahpv_city_coords_v1";
+    let cityCoords=JSON.parse(localStorage.getItem(LOCAL_KEY)||"{}");
 
-    async function ensureCoord(city) {
-      if (cityCoords[city]) return cityCoords[city];
-      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
-        encodeURIComponent(city + ", Isère, France");
-      const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-      const js = await res.json();
-      if (js && js.length) {
-        const { lat, lon } = js[0];
-        cityCoords[city] = { lat: +lat, lon: +lon };
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(cityCoords));
-        return cityCoords[city];
-      }
-      return null;
+    async function ensureCoord(city){
+       if(cityCoords[city]) return cityCoords[city];
+       const res=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(city+", Isère, France"),{headers:{"Accept-Language":"fr"}});
+       const js=await res.json();
+       if(js&&js.length){const {lat,lon}=js[0];cityCoords[city]={lat:+lat,lon:+lon};localStorage.setItem(LOCAL_KEY,JSON.stringify(cityCoords));return cityCoords[city];}
+       return null;
     }
 
-    async function loadStaticCoords() {
-      try {
-        const res = await fetch(COORDS_PATH);
-        if (res.ok) {
-          const json = await res.json();
-          cityCoords = { ...json, ...cityCoords };
-        }
-      } catch (_) {}
+    async function loadStaticCoords(){
+       try{const res=await fetch(COORDS_PATH);if(res.ok){const j=await res.json();cityCoords={...j,...cityCoords};}}catch(e){}
     }
 
-    function createSidebarEntry(art, city) {
-      const div = document.createElement("div");
-      div.className = "article";
-      div.innerHTML = "<h4>" + art.Titre + "</h4><small>" + city + " — " + (art['Année'] || 's.d.') + "</small>";
-      return div;
+    function createEntry(a,city){
+      const d=document.createElement("div");d.className="article";
+      d.innerHTML="<h4>"+a.Titre+"</h4><small>"+city+" — "+(a['Année']||'s.d.')+"</small>";
+      return d;
     }
 
-    async function placeMarker(art, city) {
-      const coord = await ensureCoord(city);
-      if (!coord) return;
-      const marker = L.marker([coord.lat, coord.lon]).addTo(map);
-      marker.bindPopup("<strong>" + art.Titre + "</strong><br/>" + city + "<br/>" + (art['Auteur(s)'] || '') + "<br/><em>" + (art['Année'] || 's.d.') + "</em>");
-      marker.on("click", () => marker.openPopup());
-      const entry = createSidebarEntry(art, city);
-      entry.addEventListener("click", () => {
-        map.setView([coord.lat, coord.lon], 12);
-        marker.openPopup();
-      });
-      document.getElementById("sidebar").appendChild(entry);
+    async function placeMarker(a,city){
+      const c=await ensureCoord(city);if(!c)return;
+      const m=L.marker([c.lat,c.lon]).addTo(map);
+      m.bindPopup("<strong>"+a.Titre+"</strong><br/>"+city+"<br/>"+(a['Auteur(s)']||'')+"<br/><em>"+(a['Année']||'s.d.')+"</em>");
+      const e=createEntry(a,city);
+      e.addEventListener("click",()=>{map.setView([c.lat,c.lon],12);m.openPopup();});
+      document.getElementById("sidebar").appendChild(e);
     }
 
-    async function loadArticles() {
+    async function loadArticles(){
       await loadStaticCoords();
-      Papa.parse(CSV_PATH, {
-        download: true,
-        header: true,
-        complete: async ({ data }) => {
-          const articles = data.filter(r => r['Ville(s)']);
-          for (const art of articles) {
-            const firstCity = art['Ville(s)'].split(/[;,/]/)[0].trim();
-            if (firstCity) await placeMarker(art, firstCity);
-          }
-        },
-      });
+      Papa.parse(CSV_PATH,{download:true,header:true,complete:async({data})=>{
+         const arr=data.filter(r=>r['Ville(s)']);
+         for(const a of arr){
+           const city=a['Ville(s)'].split(/[;,/]/)[0].trim();
+           if(city) await placeMarker(a,city);
+         }
+      }});
     }
-
     loadArticles();
   </script>
 </body>
