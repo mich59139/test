@@ -1,10 +1,9 @@
-# AHPV — Carte interactive (version corrigée)
+# AHPV — Carte interactive (papaparse via unpkg)
 
-Cette archive supprime les attributs `integrity`/`crossorigin` pour éviter les erreurs SRI.
-Déposez le contenu dans votre dépôt puis activez GitHub Pages.
+Cette version utilise **unpkg** pour Leaflet et PapaParse, sans attributs SRI.
+Place le contenu au root de ton dépôt GitHub Pages.
 
-## Mise à jour
-
-* Remplacez `data/articles.csv` par votre export.
-* (Optionnel) ajoutez `data/villes_coords.json` pour un géocodage offline.
-
+* `index.html` — page principale
+* `assets/logo_ahpv.png` — logo
+* `data/articles.csv` — catalogue (UTF-8)
+* `data/villes_coords.json` — coordinates cache (optionnel)

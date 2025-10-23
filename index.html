@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Catalogue AHPV — Carte interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet -->
+  <!-- Leaflet local to CDN -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root { --bg:#f8f8f8; --fg:#222; --brand:#1474d4;}
@@ -32,7 +32,7 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.3/dist/papaparse.min.js"></script>
   <script>
     const CSV_PATH = "data/articles.csv";
     const COORDS_PATH = "data/villes_coords.json";
