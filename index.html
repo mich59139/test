@@ -5,87 +5,20 @@
   <title>Catalogue AHPV — Carte interactive</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha512-Rksm6Q/MQ03Ghx02Fj8HkKKwiycgiLyYK1KZPAPvjfck2XSWUbpQ5QAA0if78NOPlJkFa3rKfWNxwSMSSz8Ssg=="
-    crossorigin=""
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    :root {
-      --bg: #f8f8f8;
-      --fg: #222;
-      --brand: #1474d4;
-    }
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
-        sans-serif;
-      color: var(--fg);
-      background: var(--bg);
-    }
-    header {
-      padding: 0.75rem 1rem;
-      background: var(--brand);
-      color: #fff;
-      font-size: 1.25rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-    }
-    header img {
-      height: 32px;
-    }
-    #map {
-      height: 60vh;
-    }
-    #sidebar {
-      height: 40vh;
-      overflow-y: auto;
-      padding: 1rem;
-      background: #fff;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
-    }
-    .article {
-      padding: 0.5rem 0.25rem;
-      border-bottom: 1px solid #e2e2e2;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .article:last-child {
-      border-bottom: none;
-    }
-    .article:hover {
-      background: #f1f7ff;
-    }
-    .article h4 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--brand);
-    }
-    .article small {
-      color: #666;
-    }
-    @media (min-width: 900px) {
-      #map {
-        height: calc(100vh - 65px);
-      }
-      #sidebar {
-        position: absolute;
-        top: 65px;
-        right: 0;
-        width: 340px;
-        height: calc(100vh - 65px);
-        border-left: 1px solid #ddd;
-        z-index: 1000;
-      }
-    }
+    :root { --bg:#f8f8f8; --fg:#222; --brand:#1474d4;}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg);}
+    header{padding:.75rem 1rem;background:var(--brand);color:#fff;font-size:1.25rem;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 14px rgba(0,0,0,.12);}
+    header img{height:32px;}
+    #map{height:60vh;}
+    #sidebar{height:40vh;overflow-y:auto;padding:1rem;background:#fff;box-shadow:inset 0 2px 4px rgba(0,0,0,.06);}
+    .article{padding:.5rem .25rem;border-bottom:1px solid #e2e2e2;cursor:pointer;transition:background .15s;}
+    .article:last-child{border-bottom:none;}
+    .article:hover{background:#f1f7ff;}
+    .article h4{margin:0;font-size:1rem;font-weight:600;color:var(--brand);}
+    .article small{color:#666;}
+    @media (min-width:900px){#map{height:calc(100vh - 65px);}#sidebar{position:absolute;top:65px;right:0;width:340px;height:calc(100vh - 65px);border-left:1px solid #ddd;z-index:1000;}}
   </style>
 </head>
 <body>
@@ -98,11 +31,7 @@
     <aside id="sidebar"></aside>
   </main>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha512-Vj5i7FtJNE+VtH+YgSlVz+WUtG1Gj/gn81DM7Vw2Et6OBZ4byhW5GnSI8jdvBwKXG0zdgclbDgvoD0wb76mrtA=="
-    crossorigin=""
-  ></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
   <script>
     const CSV_PATH = "data/articles.csv";
@@ -115,8 +44,7 @@
       zoomControl: true,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',
+      attribution: '© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
 
@@ -125,12 +53,9 @@
 
     async function ensureCoord(city) {
       if (cityCoords[city]) return cityCoords[city];
-      const url =
-        "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
-        encodeURIComponent(`${city}, Isère, France`);
-      const res = await fetch(url, {
-        headers: { "Accept-Language": "fr" },
-      });
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+        encodeURIComponent(city + ", Isère, France");
+      const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
       const js = await res.json();
       if (js && js.length) {
         const { lat, lon } = js[0];
@@ -154,8 +79,7 @@
     function createSidebarEntry(art, city) {
       const div = document.createElement("div");
       div.className = "article";
-      div.innerHTML = `<h4>${art.Titre}</h4>
-        <small>${city} — ${art["Année"] || "s.d."}</small>`;
+      div.innerHTML = "<h4>" + art.Titre + "</h4><small>" + city + " — " + (art['Année'] || 's.d.') + "</small>";
       return div;
     }
 
@@ -163,9 +87,7 @@
       const coord = await ensureCoord(city);
       if (!coord) return;
       const marker = L.marker([coord.lat, coord.lon]).addTo(map);
-      marker.bindPopup(
-        `<strong>${art.Titre}</strong><br/>${city}<br/>${art["Auteur(s)"] || ""}<br/><em>${art["Année"] || "s.d."}</em>`
-      );
+      marker.bindPopup("<strong>" + art.Titre + "</strong><br/>" + city + "<br/>" + (art['Auteur(s)'] || '') + "<br/><em>" + (art['Année'] || 's.d.') + "</em>");
       marker.on("click", () => marker.openPopup());
       const entry = createSidebarEntry(art, city);
       entry.addEventListener("click", () => {
@@ -181,9 +103,9 @@
         download: true,
         header: true,
         complete: async ({ data }) => {
-          const articles = data.filter((r) => r["Ville(s)"]);
+          const articles = data.filter(r => r['Ville(s)']);
           for (const art of articles) {
-            const firstCity = art["Ville(s)"].split(/[;,/]/)[0].trim();
+            const firstCity = art['Ville(s)'].split(/[;,/]/)[0].trim();
             if (firstCity) await placeMarker(art, firstCity);
           }
         },
