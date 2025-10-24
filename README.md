@@ -1,11 +1,14 @@
-# AHPV — Carte interactive (Leaflet & PapaParse via cdnjs)
+# AHPV — Carte interactive (local)
 
-Cette version utilise **cdnjs.cloudflare.com** qui sert les fichiers avec un MIME type correct
-compatible Safari (`application/javascript`). Aucun `nosniff` bloquant.
+Tous les scripts/CSS sont servis localement.  
+1. Télécharge les librairies :
 
-Déposez le dossier dans votre dépôt GitHub Pages.
+```bash
+curl -L https://unpkg.com/leaflet@1.9.4/dist/leaflet.css -o vendor/leaflet.css
+curl -L https://unpkg.com/leaflet@1.9.4/dist/leaflet.js  -o vendor/leaflet.js
+curl -L https://unpkg.com/papaparse@5.4.3/dist/papaparse.min.js -o vendor/papaparse.min.js
+```
 
-* `index.html` — application
-* `data/articles.csv` — catalogue
-* `data/villes_coords.json` — cache de géocodage (facultatif)
-* `assets/logo_ahpv.png` — logo
+2. Place ton `data/articles.csv` (UTF‑8).
+
+3. Pousse sur GitHub Pages → terminé.

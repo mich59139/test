@@ -1,80 +1,42 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <title>Catalogue AHPV — Carte interactive</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet via cdnjs -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-YF34qQbT1KO4r/J/JmI+uLiYxlf5I0p4pwSXrTJ0cbCv/K4LGGYz8RruvU1varIatJCZ4z3KUJEMwyW+1FO7kw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <style>
-    :root{--bg:#f8f8f8;--fg:#222;--brand:#1474d4;}
-    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg);}
-    header{padding:.75rem 1rem;background:var(--brand);color:#fff;font-size:1.25rem;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 14px rgba(0,0,0,.12);}
-    header img{height:32px;}
-    #map{height:60vh;}
-    #sidebar{height:40vh;overflow-y:auto;padding:1rem;background:#fff;box-shadow:inset 0 2px 4px rgba(0,0,0,.06);}
-    .article{padding:.5rem .25rem;border-bottom:1px solid #e2e2e2;cursor:pointer;transition:background .15s;}
-    .article:last-child{border-bottom:none;}
-    .article:hover{background:#f1f7ff;}
-    .article h4{margin:0;font-size:1rem;font-weight:600;color:var(--brand);}
-    .article small{color:#666;}
-    @media (min-width:900px){#map{height:calc(100vh - 65px);}#sidebar{position:absolute;top:65px;right:0;width:340px;height:calc(100vh - 65px);border-left:1px solid #ddd;z-index:1000;}}
-  </style>
+<meta charset="utf-8">
+<title>Catalogue AHPV — Carte interactive</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+:root{--bg:#f8f8f8;--fg:#222;--brand:#1474d4}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}
+header{padding:.75rem 1rem;background:var(--brand);color:#fff;font-size:1.25rem;font-weight:600;display:flex;align-items:center;gap:.5rem;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+header img{height:32px}
+#map{height:60vh}
+#sidebar{height:40vh;overflow-y:auto;padding:1rem;background:#fff;box-shadow:inset 0 2px 4px rgba(0,0,0,.06)}
+.article{padding:.5rem .25rem;border-bottom:1px solid #e2e2e2;cursor:pointer}
+.article:hover{background:#f1f7ff}
+.article h4{margin:0;font-size:1rem;font-weight:600;color:var(--brand)}
+.article small{color:#666}
+@media(min-width:900px){#map{height:calc(100vh - 65px)}#sidebar{position:absolute;top:65px;right:0;width:340px;height:calc(100vh - 65px);border-left:1px solid #ddd;z-index:1000}}
+</style>
 </head>
 <body>
-  <header><img src="assets/logo_ahpv.png" alt="AHPV" />Catalogue des articles — Carte interactive</header>
-  <main><div id="map"></div><aside id="sidebar"></aside></main>
+<header><img src="assets/logo_ahpv.png" alt="AHPV">Catalogue des articles — Carte interactive</header>
+<main><div id="map"></div><aside id="sidebar"></aside></main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-gZwIG9x3wUXg2mLb6xR0QXKyYV+3yu4Ajexlai+o8AiZd5EidK6tJ4G2R1/w0Xp38Pv5Q7yuR2IY6VmMXyRMQw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha512-zLqU9jwELyCK+MYnVS0zmP+tLN+38CEuzPuoYeYUXZ6P+IWI+bcsRKFS2miK+4nvpHxRP+f3iLUsxg9Y5lia+w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
-    const CSV_PATH = "data/articles.csv";
-    const COORDS_PATH = "data/villes_coords.json";
-
-    const map = L.map("map",{center:[45.1,5.7],zoom:9,minZoom:6,zoomControl:true});
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'© <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
-
-    const LOCAL_KEY="ahpv_city_coords_v1";
-    let cityCoords=JSON.parse(localStorage.getItem(LOCAL_KEY)||"{}");
-
-    async function ensureCoord(city){
-       if(cityCoords[city]) return cityCoords[city];
-       const res=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(city+", Isère, France"),{headers:{"Accept-Language":"fr"}});
-       const js=await res.json();
-       if(js&&js.length){const {lat,lon}=js[0];cityCoords[city]={lat:+lat,lon:+lon};localStorage.setItem(LOCAL_KEY,JSON.stringify(cityCoords));return cityCoords[city];}
-       return null;
-    }
-
-    async function loadStaticCoords(){
-       try{const res=await fetch(COORDS_PATH);if(res.ok){const j=await res.json();cityCoords={...j,...cityCoords};}}catch(e){}
-    }
-
-    function createEntry(a,city){
-      const d=document.createElement("div");d.className="article";
-      d.innerHTML="<h4>"+a.Titre+"</h4><small>"+city+" — "+(a['Année']||'s.d.')+"</small>";
-      return d;
-    }
-
-    async function placeMarker(a,city){
-      const c=await ensureCoord(city);if(!c)return;
-      const m=L.marker([c.lat,c.lon]).addTo(map);
-      m.bindPopup("<strong>"+a.Titre+"</strong><br/>"+city+"<br/>"+(a['Auteur(s)']||'')+"<br/><em>"+(a['Année']||'s.d.')+"</em>");
-      const e=createEntry(a,city);
-      e.addEventListener("click",()=>{map.setView([c.lat,c.lon],12);m.openPopup();});
-      document.getElementById("sidebar").appendChild(e);
-    }
-
-    async function loadArticles(){
-      await loadStaticCoords();
-      Papa.parse(CSV_PATH,{download:true,header:true,complete:async({data})=>{
-         const arr=data.filter(r=>r['Ville(s)']);
-         for(const a of arr){
-           const city=a['Ville(s)'].split(/[;,/]/)[0].trim();
-           if(city) await placeMarker(a,city);
-         }
-      }});
-    }
-    loadArticles();
-  </script>
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/papaparse.min.js"></script>
+<script>
+const CSV_PATH="data/articles.csv";
+const COORDS_PATH="data/villes_coords.json";
+const map=L.map("map",{center:[45.1,5.7],zoom:9});
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap contributors"}).addTo(map);
+let cityCoords=JSON.parse(localStorage.getItem("ahpv_city_coords_v1")||"{}");
+async function ensureCoord(city){if(cityCoords[city])return cityCoords[city];const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(city+", Isère, France"));const j=await r.json();if(j.length){cityCoords[city]={lat:+j[0].lat,lon:+j[0].lon};localStorage.setItem("ahpv_city_coords_v1",JSON.stringify(cityCoords));return cityCoords[city]}}
+async function loadStatic(){try{const r=await fetch(COORDS_PATH);if(r.ok){cityCoords={...await r.json(),...cityCoords}}}catch(e){}}
+function entry(a,c){const d=document.createElement("div");d.className="article";d.innerHTML="<h4>"+a.Titre+"</h4><small>"+c+" — "+(a['Année']||'s.d.')+"</small>";return d}
+async function marker(a,c){const coord=await ensureCoord(c);if(!coord)return;const m=L.marker([coord.lat,coord.lon]).addTo(map);m.bindPopup("<strong>"+a.Titre+"</strong><br>"+c+"<br>"+(a['Auteur(s)']||'')+"<br><em>"+(a['Année']||'s.d.')+"</em>");const e=entry(a,c);e.onclick=()=>{map.setView([coord.lat,coord.lon],12);m.openPopup()};document.getElementById("sidebar").appendChild(e)}
+async function init(){await loadStatic();Papa.parse(CSV_PATH,{download:true,header:true,complete:async({data})=>{for(const a of data.filter(x=>x['Ville(s)'])){const city=a['Ville(s)'].split(/[;,/]/)[0].trim();if(city)await marker(a,city)}}})}
+init();
+</script>
 </body>
 </html>
