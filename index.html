@@ -2,30 +2,33 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Catalogue AHPV — Prototype Interactif</title>
+  <title>Catalogue AHPV — Parutions interactives</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="style.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
   <header>
     <h1>Catalogue des Amis de l’Histoire du Pays Vizillois</h1>
   </header>
-
-  <section id="filters">
-    <select id="villeFilter"></select>
-    <select id="themeFilter"></select>
-    <select id="auteurFilter"></select>
-    <button id="reset">Réinitialiser</button>
-  </section>
-
-  <section id="tableSection">
-    <table id="articlesTable">
+  <main>
+    <table id="articlesTable" class="display" style="width:100%">
       <thead>
-        <tr><th>Titre</th><th>Auteur</th><th>Ville</th><th>Thème</th><th>Année</th></tr>
+        <tr>
+          <th>Année</th>
+          <th>Numéro</th>
+          <th>Titre</th>
+          <th>Page(s)</th>
+          <th>Auteur(s)</th>
+          <th>Ville(s)</th>
+          <th>Thème(s)</th>
+          <th>Époque</th>
+        </tr>
       </thead>
       <tbody></tbody>
     </table>
-  </section>
-
+  </main>
   <script src="app.js"></script>
 </body>
 </html>
