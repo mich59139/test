@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AHPV – Catalogue des Articles</title>
+  <link rel="icon" href="assets/favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Bandeau + statuts -->
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <img src="assets/logo-ahpv.png" alt="Amis de l’Histoire du Pays Vizillois" />
+        <div class="title">
+          <h1>Catalogue des Articles</h1>
+          <div class="badges panel badges">
+            <span id="status-count">Fichier : —</span>
+            <span class="sep">•</span>
+            <span id="status-auth">🔓 Invité</span>
+            <span class="grow"></span>
+            <button id="login-btn"  class="btn ghost" title="Se connecter à GitHub pour enregistrer">🔐 Connexion</button>
+            <button id="logout-btn" class="btn ghost" title="Se déconnecter de GitHub">📕 Déconnexion</button>
+            <button id="help-btn"   class="btn ghost" title="Aide">❓ Aide</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- Panneau filtres -->
+    <section class="panel">
+      <div class="row">
+        <div class="field">
+          <label for="filter-annee">Année</label>
+          <select id="filter-annee">
+            <option value="">(toutes)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="filter-numero">Numéro</label>
+          <select id="filter-numero">
+            <option value="">(tous)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="filter-epoque">Époque</label>
+          <select id="filter-epoque">
+            <option value="">(toutes)</option>
+          </select>
+        </div>
+
+        <div class="field grow">
+          <label for="search">Recherche</label>
+          <input id="search" type="search" placeholder="titre, auteur, ville, thème…" />
+        </div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn ghost" onclick="resetAllFilters()" title="Réinitialiser les filtres">↺ Réinitialiser</button>
+        </div>
+      </div>
+
+      <div class="row actions">
+        <div class="left">
+          <button class="btn" onclick="_openAddModal()" title="Ajouter un article">➕ Ajouter un article</button>
+          <button id="lists-btn" class="btn ghost" title="Éditer les listes Auteurs/Villes/Thèmes/Époques">📋 Listes</button>
+        </div>
+        <div class="right">
+          <button id="export-copy"     class="btn ghost" title="Copier (TSV)">📄 Copier</button>
+          <button id="export-csv"      class="btn ghost" title="Exporter CSV (filtres)">⬇️ CSV</button>
+          <button id="export-xlsx"     class="btn ghost" title="Exporter Excel (filtres)">📊 Excel</button>
+          <button id="export-print"    class="btn ghost" title="Imprimer">🖨️ Imprimer</button>
+          <button id="export-csv-all"  class="btn ghost" title="Exporter CSV (tout)">⬇️ CSV (Tout)</button>
+          <button id="export-xlsx-all" class="btn ghost" title="Exporter Excel (tout)">📊 Excel (Tout)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tableau -->
+    <section class="panel">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-col="Année"  tabindex="0">Année</th>
+              <th data-col="Numéro" tabindex="0">Numéro</th>
+              <th data-col="Titre"  tabindex="0">Titre</th>
+              <th data-col="Page(s)" tabindex="0">Page(s)</th>
+              <th data-col="Auteur(s)" tabindex="0">Auteur(s)</th>
+              <th data-col="Ville(s)" tabindex="0">Ville(s)</th>
+              <th data-col="Theme(s)" tabindex="0">Thème(s)</th>
+              <th data-col="Epoque" tabindex="0">Période</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <button id="prev" class="btn ghost" title="Page précédente">◀</button>
+        <span id="pageinfo">—</span>
+        <button id="next" class="btn ghost" title="Page suivante">▶</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modale : ajout d’article -->
+  <dialog id="add-modal" class="dialog">
+    <form id="add-form" method="dialog">
+      <h3>Ajouter un article</h3>
+
+      <div class="grid">
+        <label>Année
+          <input id="a-annee" type="text" inputmode="numeric" placeholder="2025" required />
+        </label>
+
+        <label>Numéro
+          <!-- Select + "Nouveau numéro…" (le JS injecte toutes les options) -->
+          <select id="a-numero"></select>
+          <input id="a-numero-new" class="hidden" type="text" placeholder="Mémoire n°68" />
+        </label>
+
+        <label>Titre
+          <input id="a-titre" type="text" required />
+        </label>
+
+        <label>Page(s)
+          <input id="a-pages" type="text" placeholder="12 à 16" />
+        </label>
+
+        <label>Auteur(s)
+          <input id="a-auteurs" list="dl-auteurs" type="text" placeholder="Nom 1; Nom 2" />
+        </label>
+
+        <label>Ville(s)
+          <input id="a-villes" list="dl-villes" type="text" placeholder="Ville 1; Ville 2" />
+        </label>
+
+        <label>Thème(s)
+          <input id="a-themes" list="dl-themes" type="text" placeholder="Thème 1; Thème 2" />
+        </label>
+
+        <label>Époque
+          <input id="a-epoque" list="dl-epoques" type="text" placeholder="XXe siècle" />
+        </label>
+      </div>
+
+      <menu class="dialog-actions">
+        <button type="button" id="add-cancel" class="btn ghost">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <!-- Modale : Aide -->
+  <dialog id="help-modal" class="dialog">
+    <h3>Aide rapide</h3>
+    <ul class="help">
+      <li><b>Tri :</b> clique sur l’en-tête d’une colonne.</li>
+      <li><b>Recherche :</b> tape un mot (filtre en direct).</li>
+      <li><b>Édition inline :</b> double-clic sur une ligne (auto-save).</li>
+      <li><b>Numéro :</b> choisis dans la liste ou “Nouveau numéro…”.</li>
+      <li><b>Listes :</b> gère auteurs / villes / thèmes / époques (renommer, dédupliquer, importer/exporter CSV).</li>
+    </ul>
+    <menu class="dialog-actions">
+      <button id="help-close" class="btn">Fermer</button>
+    </menu>
+  </dialog>
+
+  <!-- Modale : mini-éditeur des listes -->
+  <dialog id="lists-modal" class="dialog lists">
+    <h3>Listes</h3>
+
+    <div class="tabs">
+      <button class="tab active" data-kind="auteurs">Auteurs</button>
+      <button class="tab" data-kind="villes">Villes</button>
+      <button class="tab" data-kind="themes">Thèmes</button>
+      <button class="tab" data-kind="epoques">Époques</button>
+      <span id="list-count" class="count"></span>
+    </div>
+
+    <div class="lists-body">
+      <div class="editor">
+        <input id="list-input" type="text" placeholder="Nouvel élément…" />
+        <button id="list-add" class="btn">Ajouter</button>
+        <button id="list-sort" class="btn ghost">Trier</button>
+        <button id="list-dedupe" class="btn ghost">Dédupliquer</button>
+        <button id="list-import" class="btn ghost">Importer CSV</button>
+        <input id="list-file" type="file" accept=".csv,text/csv" class="hidden" />
+        <button id="list-export" class="btn ghost">Exporter CSV</button>
+      </div>
+
+      <ul id="list-items" class="items"></ul>
+    </div>
+
+    <menu class="dialog-actions">
+      <button id="list-close" class="btn ghost">Fermer</button>
+      <button id="list-save"  class="btn">Enregistrer sur GitHub</button>
+    </menu>
+  </dialog>
+
+  <!-- Datalists (auto-complétion) -->
+  <datalist id="dl-auteurs"></datalist>
+  <datalist id="dl-villes"></datalist>
+  <datalist id="dl-themes"></datalist>
+  <datalist id="dl-epoques"></datalist>
+
+  <!-- Overlay chargement -->
+  <div id="loading" class="loading hidden">Chargement…</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
