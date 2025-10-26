@@ -13,6 +13,21 @@
     <h1>Catalogue des Amis de l’Histoire du Pays Vizillois</h1>
   </header>
   <main>
+    <button id="showAddForm">Ajouter un article</button>
+    <div id="addFormContainer" style="display:none; background:#eee; padding:1em; margin:1em 0;">
+      <form id="addForm">
+        <input type="text" name="Année" placeholder="Année" required>
+        <input type="text" name="Numéro" placeholder="Numéro" required>
+        <input type="text" name="Titre" placeholder="Titre" required>
+        <input type="text" name="Page(s)" placeholder="Page(s)">
+        <select name="Auteur(s)" id="addAuteur"></select>
+        <select name="Ville(s)" id="addVille"></select>
+        <select name="Theme(s)" id="addTheme"></select>
+        <input type="text" name="Epoque" placeholder="Époque">
+        <button type="submit">Valider</button>
+        <button type="button" id="cancelAdd">Annuler</button>
+      </form>
+    </div>
     <table id="articlesTable" class="display" style="width:100%">
       <thead>
         <tr>
@@ -22,8 +37,8 @@
           <th>Page(s)</th>
           <th>Auteur(s)</th>
           <th>Ville(s)</th>
-          <th>Thème(s)</th>
-          <th>Époque</th>
+          <th>Theme(s)</th>
+          <th>Epoque</th>
         </tr>
       </thead>
       <tbody></tbody>
