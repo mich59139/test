@@ -11,12 +11,16 @@ async function loadCSV(file) {
   return {headers, data};
 }
 
+function getUniqueColumnValues(data, index) {
+  return [...new Set(data.map(row => row[index]).filter(Boolean).flatMap(v => v.split(",").map(s => s.trim())))]
+    .sort((a, b) => a.localeCompare(b, "fr"));
+}
+
 async function init() {
   const {headers, data} = await loadCSV("articles.csv");
-
-  // Initialisation DataTable
+  let table = null;
   $(document).ready(function () {
-    $('#articlesTable').DataTable({
+    table = $('#articlesTable').DataTable({
       data: data,
       columns: headers.map(h => ({title: h})),
       pageLength: 50,
@@ -24,6 +28,50 @@ async function init() {
       language: {
         url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json"
       }
+    });
+
+    // Remplir les listes pour le formulaire d'ajout
+    const idxAuteur = headers.indexOf("Auteur(s)");
+    const idxVille = headers.indexOf("Ville(s)");
+    const idxTheme = headers.indexOf("Theme(s)");
+    ["addAuteur", "addVille", "addTheme"].forEach((id, idx) => {
+      const arr =
+        idx === 0 ? getUniqueColumnValues(data, idxAuteur)
+        : idx === 1 ? getUniqueColumnValues(data, idxVille)
+        : getUniqueColumnValues(data, idxTheme);
+      const sel = document.getElementById(id);
+      if (sel) {
+        sel.innerHTML = '';
+        arr.forEach(val => {
+          const opt = document.createElement("option");
+          opt.value = val; opt.text = val;
+          sel.add(opt);
+        });
+      }
+    });
+
+    $("#showAddForm").on("click", function() {
+      $("#addFormContainer").show();
+    });
+    $("#cancelAdd").on("click", function() {
+      $("#addFormContainer").hide();
+    });
+    $("#addForm").on("submit", function(e){
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const newRow = [
+        fd.get("Année"),
+        fd.get("Numéro"),
+        fd.get("Titre"),
+        fd.get("Page(s)"),
+        fd.get("Auteur(s)"),
+        fd.get("Ville(s)"),
+        fd.get("Theme(s)"),
+        fd.get("Epoque")
+      ];
+      table.row.add(newRow).draw();
+      e.target.reset();
+      $("#addFormContainer").hide();
     });
   });
 }
