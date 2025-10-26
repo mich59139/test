@@ -1,174 +1,28 @@
-:root{
-  --bg: #f3ead1;
-  --panel: #f6f0dd;
-  --text: #3a342b;
-  --muted:#6b645a;
-  --border:#e3d8be;
-  --accent:#6b8a21; /* olive légère */
-  --ghost:#c9bfa3;
-  --danger:#b6423c;
-  --radius:14px;
-  --shadow:0 10px 20px rgba(0,0,0,.06);
+body {
+  font-family: Arial, sans-serif;
+  margin: 0; padding: 0;
+  background: #f6f6f6;
+}
+header {
+  background: #384B71; color: white; padding: 10px 20px;
+}
+#filters {
+  margin: 20px; display: flex; gap: 10px;
+}
+table {
+  width: 95%; margin: 0 auto; border-collapse: collapse;
+  background: white;
+}
+th, td {
+  border: 1px solid #ddd; padding: 8px;
+}
+th {
+  background: #f2f2f2;
+}
+button {
+  background: #384B71; color: white; border: none; padding: 5px 10px;
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
-  margin:0; font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", sans-serif;
-  color:var(--text); background:var(--bg);
-}
-
-/* Header */
-.site-header{
-  position:sticky; top:0; z-index:20;
-  background:linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,0));
-  backdrop-filter:saturate(1.1) blur(6px);
-  border-bottom:1px solid var(--border);
-}
-@media (max-width: 720px){
-  .site-header{ position:static; }
-}
-.wrap{ max-width:1100px; margin:0 auto; padding:18px; }
-
-.brand{ display:flex; gap:16px; align-items:center; }
-.brand img{ height:44px; width:auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.08)); }
-.brand .title h1{ margin:0; font-size:20px; }
-.badges{ display:flex; align-items:center; gap:10px; color:var(--muted); }
-.badges .sep{ opacity:.5; }
-.badges .grow{ flex:1 1 auto; }
-
-/* Panels & fields */
-.panel{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:14px;
-  margin:14px 0;
-  box-shadow:var(--shadow);
-}
-.row{ display:flex; gap:14px; flex-wrap:wrap; }
-.field{ display:flex; flex-direction:column; gap:6px; min-width:160px; }
-.field.grow{ flex:1 1 280px; min-width:240px; }
-label{ font-size:12px; color:var(--muted); }
-input[type="text"], input[type="search"], select{
-  appearance:none; width:100%;
-  border:1px solid var(--border); border-radius:10px; padding:10px 12px;
-  background:#fff; color:var(--text);
-}
-
-.actions{ justify-content:space-between; align-items:center; margin-top:8px; }
-.btn{
-  background:var(--accent); color:#fff; border:none; padding:9px 12px; border-radius:10px; cursor:pointer;
-  box-shadow:0 2px 0 rgba(0,0,0,.06); font-weight:600;
-}
-.btn.ghost{ background:#fff; color:var(--text); border:1px solid var(--border); }
-.btn:disabled{ opacity:.5; cursor:not-allowed; }
-
-/* Table */
-.table-wrap{ overflow:auto; }
-.table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:auto; }
-.table th, .table td{
-  padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top;
-}
-.table thead th{
-  position:sticky; top:0; background:var(--panel); z-index:1; cursor:pointer; user-select:none;
-}
-.table tbody tr:nth-child(odd){ background: rgba(0,0,0,.03); }
-
-.table th.sort-asc::after{ content:" ▲"; color:var(--muted); }
-.table th.sort-desc::after{ content:" ▼"; color:var(--muted); }
-
-button.edit, button.del{
-  border:1px solid var(--border); background:#fff; border-radius:8px; padding:4px 8px; cursor:pointer;
-}
-button.del{ color:#fff; background:var(--danger); border-color:var(--danger); }
-
-/* Pager */
-.pager{ display:flex; align-items:center; gap:10px; justify-content:center; padding-top:8px; color:var(--muted); }
-
-/* Dialogs */
-.dialog{ border:none; padding:0; border-radius:16px; width:min(840px, 96vw); }
-.dialog::backdrop{ background:rgba(0,0,0,.35); }
-.dialog form, .dialog .lists-body, .dialog .help{ padding:18px; }
-.dialog h3{ margin:18px; margin-bottom:0; }
-.dialog .grid{
-  display:grid; gap:12px; grid-template-columns: repeat(2, minmax(220px, 1fr));
-  padding:18px;
-}
-@media (max-width:720px){ .dialog .grid{ grid-template-columns:1fr; } }
-.dialog-actions{ display:flex; justify-content:flex-end; gap:10px; padding:12px 18px 18px; }
-.hidden{ display:none !important; }
-
-/* Tabs (list editor) */
-.tabs{ display:flex; align-items:center; gap:10px; padding:12px 18px 0; }
-.tab{ border:1px solid var(--border); background:#fff; padding:8px 10px; border-radius:999px; cursor:pointer; }
-.tab.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
-.count{ margin-left:auto; color:var(--muted); }
-
-.lists .editor{ display:flex; gap:8px; align-items:center; padding:10px 18px; }
-.lists .editor input{ flex:1 1 auto; }
-.items{ list-style:none; margin:0; padding:10px 18px 18px; display:grid; gap:8px; max-height:52vh; overflow:auto; }
-.items li{ display:flex; justify-content:space-between; align-items:center; gap:10px;
-  padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#fff; }
-.items button{ border:1px solid var(--border); background:#fff; border-radius:8px; padding:6px 8px; cursor:pointer; }
-.items button.del{ color:#fff; background:var(--danger); border-color:var(--danger); }
-
-/* Overlay chargement */
-.loading{
-  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-  background:rgba(255,255,255,.6); font-weight:700; font-size:18px; z-index:30;
-}
-
-/* --------- Nettoyage des contrôles natifs visibles dans les cellules (Safari etc.) -------- */
-.table tbody tr:not(.editing) input,
-.table tbody tr:not(.editing) select{
-  appearance:none; -webkit-appearance:none;
-  border:0; background:transparent; padding:0; margin:0; pointer-events:none; color:inherit;
-}
-.table tbody tr:not(.editing) input[type="checkbox"],
-.table tbody tr:not(.editing) input[type="radio"]{ display:none; }
-
-/* --------- FORCER le mode LISTE (table) sur mobile : pas de cartes --------- */
-@media (max-width: 820px) {
-  .table      { display: table; width: 100%; table-layout: auto; }
-  .table thead{ display: table-header-group; }
-  .table tbody{ display: table-row-group; }
-  .table tr   { display: table-row; }
-  .table th,
-  .table td   { display: table-cell; padding: 8px 10px; font-size:14px; line-height:1.35; }
-
-  /* si un ancien mode "cartes" existait avec data-label, on neutralise */
-  .table td::before { content: none !important; display: none !important; }
-
-  /* scroll horizontal si nécessaire */
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-}
-
-/* Limiter le flex aux rangées de panneaux, pas aux <tr> */
-.panel .row{ display:flex; gap:14px; flex-wrap:wrap; }   /* <- ton ancien .row */
-tr.row{ display:table-row !important; }                  /* <- protège le tableau */
-
-/* Forcer la LISTE (table) quoi qu'il arrive */
-.table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-.table{ display:table !important; width:100% !important; table-layout:auto !important; }
-.table thead{ display:table-header-group !important; }
-.table tbody{ display:table-row-group !important; }
-.table tr{ display:table-row !important; margin:0 !important; border:0 !important; }
-.table th,
-.table td{ display:table-cell !important; padding:8px 10px !important; font-size:14px !important; line-height:1.35 !important; text-align:left !important; }
-.table td::before{ content:none !important; display:none !important; }
-
-/* Au cas où un ancien CSS cachait le thead en mobile */
-@media (max-width:2000px){
-  .table thead{ display:table-header-group !important; }
-}
-
-/* Nettoyage des contrôles natifs visibles dans les cellules (Safari etc.) */
-.table tbody tr:not(.editing) input,
-.table tbody tr:not(.editing) select{
-  appearance:none !important; -webkit-appearance:none !important;
-  border:0 !important; background:transparent !important; padding:0 !important; margin:0 !important;
-  pointer-events:none !important; color:inherit !important;
 }
 .table tbody tr:not(.editing) input[type="checkbox"],
 .table tbody tr:not(.editing) input[type="radio"]{ display:none !important; }
