@@ -18,3 +18,18 @@ h1 {
   width: 100%;
   margin-top: 1em;
 }
+#addForm input, #addForm select, #addForm button {
+  margin: 0.2em 0.7em 0.2em 0;
+}
+#addForm input, #addForm select {
+  font-size: 1em;
+  padding: 0.2em;
+}
+#showAddForm {
+  background: #456ba2;
+  color: white;
+  border: none;
+  padding: 0.5em 1.5em;
+  margin-bottom: 1em;
+  cursor: pointer;
+}
