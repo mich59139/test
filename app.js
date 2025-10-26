@@ -34,21 +34,22 @@ async function init() {
     const idxAuteur = headers.indexOf("Auteur(s)");
     const idxVille = headers.indexOf("Ville(s)");
     const idxTheme = headers.indexOf("Theme(s)");
-    ["addAuteur", "addVille", "addTheme"].forEach((id, idx) => {
-      const arr =
-        idx === 0 ? getUniqueColumnValues(data, idxAuteur)
-        : idx === 1 ? getUniqueColumnValues(data, idxVille)
-        : getUniqueColumnValues(data, idxTheme);
-      const sel = document.getElementById(id);
+    fillSelect("addAuteur", getUniqueColumnValues(data, idxAuteur));
+    fillSelect("addVille", getUniqueColumnValues(data, idxVille));
+    fillSelect("addTheme", getUniqueColumnValues(data, idxTheme));
+
+    function fillSelect(elementId, values) {
+      const sel = document.getElementById(elementId);
       if (sel) {
         sel.innerHTML = '';
-        arr.forEach(val => {
+        values.forEach(val => {
           const opt = document.createElement("option");
-          opt.value = val; opt.text = val;
+          opt.value = val;
+          opt.text = val;
           sel.add(opt);
         });
       }
-    });
+    }
 
     $("#showAddForm").on("click", function() {
       $("#addFormContainer").show();
