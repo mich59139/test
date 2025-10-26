@@ -1,3 +1,11 @@
+async function loadRefCSV(file) {
+  const resp = await fetch(file);
+  const text = (await resp.text()).trim();
+  const lines = text.split(/\r?\n/);
+  // suppose format "Nom,...", ignore les colonnes suivantes
+  return lines.slice(1).map(line => line.split(',')[0].replace(/"/g,'').trim()).filter(Boolean);
+}
+
 async function loadCSV(file) {
   const resp = await fetch(file);
   const text = (await resp.text()).trim();
@@ -6,24 +14,32 @@ async function loadCSV(file) {
   const headers = lines[0].split(separator).map(h => h.trim());
   const data = lines.slice(1).map(line => {
     const values = line.split(separator);
-    return values.map(v => v ? v.replace(/"/g, '').trim() : ""); // Nettoyage ici
+    return values.map(v => v ? v.replace(/"/g, '').trim() : "");
   });
   return {headers, data};
 }
 
-function getUniqueColumnValues(data, index) {
-  return [...new Set(
-    data.map(row => row[index])
-      .filter(Boolean)
-      .flatMap(v => v.split(",").map(s => s.replace(/"/g, '').trim()))
-  )].sort((a, b) => a.localeCompare(b, "fr"));
-}
+window.validatePwd = function() {
+  let value = document.getElementById("accessPwd").value;
+  // Tu choisis ton propre mot de passe ici ("vizille2025" par exemple)
+  if (value === "vizille2025") {
+    window.editEnabled = true;
+    document.getElementById("showAddForm").style.display = 'inline-block';
+    document.getElementById("protectZone").style.display = 'none';
+    document.getElementById("protectMsg").innerText = "";
+  } else {
+    document.getElementById("protectMsg").innerText = "Mot de passe incorrect.";
+  }
+};
 
 async function init() {
   const {headers, data} = await loadCSV("articles.csv");
+  const auteursList = await loadRefCSV("auteurs.csv");
+  const villesList = await loadRefCSV("villes.csv");
+  const themesList = await loadRefCSV("themes.csv");
   let table = null;
+
   $(document).ready(function () {
-    // Ajoute une colonne d'actions (boutons)
     table = $('#articlesTable').DataTable({
       data: data.map(row => [...row, ""]),
       columns: [
@@ -46,13 +62,9 @@ async function init() {
       }
     });
 
-    // Remplir listes déroulantes
-    const idxAuteur = headers.indexOf("Auteur(s)");
-    const idxVille = headers.indexOf("Ville(s)");
-    const idxTheme = headers.indexOf("Theme(s)");
-    fillSelect("addAuteur", getUniqueColumnValues(data, idxAuteur));
-    fillSelect("addVille", getUniqueColumnValues(data, idxVille));
-    fillSelect("addTheme", getUniqueColumnValues(data, idxTheme));
+    fillSelect("addAuteur", auteursList);
+    fillSelect("addVille", villesList);
+    fillSelect("addTheme", themesList);
 
     function fillSelect(elementId, values) {
       const sel = document.getElementById(elementId);
@@ -67,16 +79,20 @@ async function init() {
       }
     }
 
+    // Protection édition : cacher les boutons tant que non validé
+    document.getElementById("showAddForm").style.display = "none";
+    document.getElementById("protectZone").style.display = "block";
+    window.editEnabled = false;
+
     $("#showAddForm").on("click", function() {
-      $("#addFormContainer").show();
+      if (window.editEnabled) $("#addFormContainer").show();
     });
     $("#cancelAdd").on("click", function() {
       $("#addFormContainer").hide();
       window.rowToEdit = null;
     });
-
-    // Modification/édition
     $('#articlesTable tbody').on('click', '.editBtn', function() {
+      if (!window.editEnabled) return;
       const data = table.row($(this).closest('tr')).data();
       $("#addForm [name='Année']").val(data[0]);
       $("#addForm [name='Numéro']").val(data[1]);
@@ -90,20 +106,20 @@ async function init() {
       window.rowToEdit = $(this).closest('tr');
     });
 
-    // Validation visuelle
     $('#articlesTable tbody').on('click', '.validateBtn', function() {
+      if (!window.editEnabled) return;
       $(this).closest('tr').css("background", "#e7fbe8");
     });
 
-    // Suppression
     $('#articlesTable tbody').on('click', '.deleteBtn', function() {
+      if (!window.editEnabled) return;
       table.row($(this).closest('tr')).remove().draw();
       window.rowToEdit = null;
     });
 
-    // Ajout ou édition
     $("#addForm").on("submit", function(e){
       e.preventDefault();
+      if (!window.editEnabled) return;
       const fd = new FormData(e.target);
       const newRow = [
         fd.get("Année"),
@@ -115,7 +131,7 @@ async function init() {
         fd.get("Theme(s)"),
         fd.get("Epoque"),
         ""
-      ].map(cell => cell ? cell.replace(/"/g,'') : ""); // nettoyage guillemets
+      ].map(cell => cell ? cell.replace(/"/g,'') : "");
 
       if (window.rowToEdit) {
         table.row(window.rowToEdit).data(newRow).draw();
