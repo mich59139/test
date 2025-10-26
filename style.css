@@ -6,23 +6,15 @@ body {
 header {
   background: #384B71; color: white; padding: 10px 20px;
 }
-#filters {
-  margin: 20px; display: flex; gap: 10px;
+main {
+  padding: 2em;
 }
-table {
-  width: 95%; margin: 0 auto; border-collapse: collapse;
+h1 {
+  font-size: 1.5em;
+}
+.display {
   background: white;
+  border: 1px solid #ddd;
+  width: 100%;
+  margin-top: 1em;
 }
-th, td {
-  border: 1px solid #ddd; padding: 8px;
-}
-th {
-  background: #f2f2f2;
-}
-button {
-  background: #384B71; color: white; border: none; padding: 5px 10px;
-}
-
-}
-.table tbody tr:not(.editing) input[type="checkbox"],
-.table tbody tr:not(.editing) input[type="radio"]{ display:none !important; }
