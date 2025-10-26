@@ -1,13 +1,13 @@
 // Fonction universelle de lecture CSV avec détection du séparateur
 async function loadCSV(file) {
   const resp = await fetch(file);
-  const text = await resp.text().trim();
+  const text = (await resp.text()).trim(); // Correction ! Utilisation de await avant .trim()
   const lines = text.split(/\r?\n/);
 
   // Détecte le séparateur utilisé : "," ou ";"
   const separator = lines[0].includes(";") ? ";" : ",";
   const headers = lines[0].split(separator).map(h => h.trim());
-  
+
   const data = lines.slice(1).map(line => {
     const values = line.split(separator);
     const record = {};
