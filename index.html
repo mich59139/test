@@ -44,6 +44,12 @@
       </thead>
       <tbody></tbody>
     </table>
+    <div id="protectZone" style="display:none; margin-top: 2em;">
+      <label>Entrer mot de passe pour modifier :</label>
+      <input type="password" id="accessPwd">
+      <button onclick="window.validatePwd()">Activer édition</button>
+      <span id="protectMsg" style="color:red;"></span>
+    </div>
   </main>
   <script src="app.js"></script>
 </body>
