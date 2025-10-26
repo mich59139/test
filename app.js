@@ -2,8 +2,10 @@ async function loadRefCSV(file) {
   const resp = await fetch(file);
   const text = (await resp.text()).trim();
   const lines = text.split(/\r?\n/);
-  // suppose format "Nom,...", ignore les colonnes suivantes
-  return lines.slice(1).map(line => line.split(',')[0].replace(/"/g,'').trim()).filter(Boolean);
+  // Exclut les entrées vides, "-", "?" et leur variante avec espace
+  return lines.slice(1)
+    .map(line => line.split(',')[0].replace(/"/g,'').trim())
+    .filter(val => val && val !== '-' && val !== '?' && !val.startsWith('?'));
 }
 
 async function loadCSV(file) {
@@ -21,7 +23,7 @@ async function loadCSV(file) {
 
 window.validatePwd = function() {
   let value = document.getElementById("accessPwd").value;
-  // Tu choisis ton propre mot de passe ici ("vizille2025" par exemple)
+  // Mot de passe d'édition à ajuster selon besoin
   if (value === "vizille2025") {
     window.editEnabled = true;
     document.getElementById("showAddForm").style.display = 'inline-block';
@@ -79,7 +81,6 @@ async function init() {
       }
     }
 
-    // Protection édition : cacher les boutons tant que non validé
     document.getElementById("showAddForm").style.display = "none";
     document.getElementById("protectZone").style.display = "block";
     window.editEnabled = false;
@@ -91,6 +92,7 @@ async function init() {
       $("#addFormContainer").hide();
       window.rowToEdit = null;
     });
+
     $('#articlesTable tbody').on('click', '.editBtn', function() {
       if (!window.editEnabled) return;
       const data = table.row($(this).closest('tr')).data();
