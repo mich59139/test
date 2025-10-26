@@ -6,23 +6,39 @@ async function loadCSV(file) {
   const headers = lines[0].split(separator).map(h => h.trim());
   const data = lines.slice(1).map(line => {
     const values = line.split(separator);
-    return values.map(v => v ? v.trim() : "");
+    return values.map(v => v ? v.replace(/"/g, '').trim() : ""); // Nettoyage ici
   });
   return {headers, data};
 }
 
 function getUniqueColumnValues(data, index) {
-  return [...new Set(data.map(row => row[index]).filter(Boolean).flatMap(v => v.split(",").map(s => s.trim())))]
-    .sort((a, b) => a.localeCompare(b, "fr"));
+  return [...new Set(
+    data.map(row => row[index])
+      .filter(Boolean)
+      .flatMap(v => v.split(",").map(s => s.replace(/"/g, '').trim()))
+  )].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
 async function init() {
   const {headers, data} = await loadCSV("articles.csv");
   let table = null;
   $(document).ready(function () {
+    // Ajoute une colonne d'actions (boutons)
     table = $('#articlesTable').DataTable({
-      data: data,
-      columns: headers.map(h => ({title: h})),
+      data: data.map(row => [...row, ""]),
+      columns: [
+        ...headers.map(h => ({title: h})),
+        {
+          title: "Actions",
+          data: null,
+          orderable: false,
+          defaultContent: `
+            <button class="validateBtn">Valider</button>
+            <button class="editBtn">Modifier</button>
+            <button class="deleteBtn">Supprimer</button>
+          `
+        }
+      ],
       pageLength: 50,
       lengthMenu: [[50, 100, -1], [50, 100, "Toutes"]],
       language: {
@@ -30,7 +46,7 @@ async function init() {
       }
     });
 
-    // Remplir les listes pour le formulaire d'ajout
+    // Remplir listes déroulantes
     const idxAuteur = headers.indexOf("Auteur(s)");
     const idxVille = headers.indexOf("Ville(s)");
     const idxTheme = headers.indexOf("Theme(s)");
@@ -56,7 +72,36 @@ async function init() {
     });
     $("#cancelAdd").on("click", function() {
       $("#addFormContainer").hide();
+      window.rowToEdit = null;
     });
+
+    // Modification/édition
+    $('#articlesTable tbody').on('click', '.editBtn', function() {
+      const data = table.row($(this).closest('tr')).data();
+      $("#addForm [name='Année']").val(data[0]);
+      $("#addForm [name='Numéro']").val(data[1]);
+      $("#addForm [name='Titre']").val(data[2]);
+      $("#addForm [name='Page(s)']").val(data[3]);
+      $("#addForm [name='Auteur(s)']").val(data[4]);
+      $("#addForm [name='Ville(s)']").val(data[5]);
+      $("#addForm [name='Theme(s)']").val(data[6]);
+      $("#addForm [name='Epoque']").val(data[7]);
+      $("#addFormContainer").show();
+      window.rowToEdit = $(this).closest('tr');
+    });
+
+    // Validation visuelle
+    $('#articlesTable tbody').on('click', '.validateBtn', function() {
+      $(this).closest('tr').css("background", "#e7fbe8");
+    });
+
+    // Suppression
+    $('#articlesTable tbody').on('click', '.deleteBtn', function() {
+      table.row($(this).closest('tr')).remove().draw();
+      window.rowToEdit = null;
+    });
+
+    // Ajout ou édition
     $("#addForm").on("submit", function(e){
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -68,9 +113,16 @@ async function init() {
         fd.get("Auteur(s)"),
         fd.get("Ville(s)"),
         fd.get("Theme(s)"),
-        fd.get("Epoque")
-      ];
-      table.row.add(newRow).draw();
+        fd.get("Epoque"),
+        ""
+      ].map(cell => cell ? cell.replace(/"/g,'') : ""); // nettoyage guillemets
+
+      if (window.rowToEdit) {
+        table.row(window.rowToEdit).data(newRow).draw();
+        window.rowToEdit = null;
+      } else {
+        table.row.add(newRow).draw();
+      }
       e.target.reset();
       $("#addFormContainer").hide();
     });
