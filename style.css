@@ -1,35 +1,76 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f4f7fa;
   margin: 0; padding: 0;
-  background: #f6f6f6;
 }
 header {
   background: #384B71; color: white; padding: 10px 20px;
 }
-main {
-  padding: 2em;
+header h1 { font-size: 1.2em; margin: 0.5em 0; font-weight: 400;}
+.center-card {
+  margin: 2.5em auto 2em auto;
+  max-width: 1100px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 2em 2.2em;
+  border: 1.5px solid #d6dceb;
+  box-shadow: 0 2px 12px #0001;
 }
-h1 {
-  font-size: 1.5em;
+.table-card {
+  background: #fff;
+  border-radius: 8px;
+  border: 1.5px solid #d6dceb;
+  box-shadow: 0 2px 5px #0001;
+  overflow-x: auto;
+  padding: 1em 0.4em;
+  min-width: 890px;
 }
 .display {
-  background: white;
-  border: 1px solid #ddd;
+  font-size: 0.98em;
   width: 100%;
-  margin-top: 1em;
+  border-collapse: collapse;
 }
-#addForm input, #addForm select, #addForm button {
-  margin: 0.2em 0.7em 0.2em 0;
+.display th, .display td {
+  padding: 0.35em 0.6em;
+  border: 1px solid #e3e8f0;
+  font-weight: 400;
 }
-#addForm input, #addForm select {
+.display th {
+  background: #f1f3fb;
+  font-size: 0.98em;
+}
+input.input-md, input.input-lg, select.select-lg {
+  border-radius: 5px;
+  border: 1.5px solid #adbbd7;
+  padding: 0.45em 0.7em;
   font-size: 1em;
-  padding: 0.2em;
+  background: #fcfdff;
+  margin-left: 0.4em;
 }
-#showAddForm {
-  background: #456ba2;
-  color: white;
-  border: none;
-  padding: 0.5em 1.5em;
-  margin-bottom: 1em;
-  cursor: pointer;
+input.input-lg { min-width: 200px; }
+select.select-lg {
+  min-width: 120px;
+  min-height: 2.2em;
+  font-size: 1em;
 }
+.form-row {
+  margin-bottom: 0.6em;
+  display: flex;
+  align-items: center;
+}
+.form-row label {
+  width: 100px; color: #495985; font-size: 0.97em;
+}
+.btn-primary {
+  background: #456ba2; color: white; border: none; padding: 0.45em 1.1em;
+  border-radius: 4px; margin-right: 0.7em; cursor: pointer;
+}
+.btn-light {
+  background: #e3eaf7; color:#4c577a; border: none; padding: 0.45em 1em;
+  border-radius: 4px; cursor: pointer;
+}
+.btn-success {
+  background: #3ca161; color: white; border: none; padding: 0.45em 1.1em;
+  border-radius: 4px; margin-bottom: 1.1em; cursor: pointer;
+}
+#showAddForm { margin-bottom: 1.2em; }
