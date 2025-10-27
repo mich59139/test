@@ -13,42 +13,55 @@
     <h1>Catalogue des Amis de l’Histoire du Pays Vizillois</h1>
   </header>
   <main>
-    <button id="showAddForm">Ajouter un article</button>
-    <div id="addFormContainer" style="display:none; background:#eee; padding:1em; margin:1em 0;">
-      <form id="addForm">
-        <input type="text" name="Année" placeholder="Année" required>
-        <input type="text" name="Numéro" placeholder="Numéro" required>
-        <input type="text" name="Titre" placeholder="Titre" required>
-        <input type="text" name="Page(s)" placeholder="Page(s)">
-        <select name="Auteur(s)" id="addAuteur" required></select>
-        <select name="Ville(s)" id="addVille" required></select>
-        <select name="Theme(s)" id="addTheme" required></select>
-        <input type="text" name="Epoque" placeholder="Époque">
-        <button type="submit">Valider</button>
-        <button type="button" id="cancelAdd">Annuler</button>
-      </form>
-    </div>
-    <table id="articlesTable" class="display" style="width:100%">
-      <thead>
-        <tr>
-          <th>Année</th>
-          <th>Numéro</th>
-          <th>Titre</th>
-          <th>Page(s)</th>
-          <th>Auteur(s)</th>
-          <th>Ville(s)</th>
-          <th>Theme(s)</th>
-          <th>Epoque</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="protectZone" style="display:none; margin-top: 2em;">
-      <label>Entrer mot de passe pour modifier :</label>
-      <input type="password" id="accessPwd">
-      <button onclick="window.validatePwd()">Activer édition</button>
-      <span id="protectMsg" style="color:red;"></span>
+    <div class="center-card">
+      <div id="protectZone" style="margin-bottom: 1.5em;">
+        <label>Entrer mot de passe pour modifier :
+          <input type="password" id="accessPwd" class="input-md">
+        </label>
+        <button class="btn-primary" onclick="window.validatePwd()">Activer édition</button>
+        <span id="protectMsg" style="color:red; margin-left:1em;"></span>
+      </div>
+      <button id="showAddForm" class="btn-success">Ajouter un article</button>
+      <div id="addFormContainer" style="display:none; background:#f8fafe; padding:1em 2em; margin:1.3em 0; border:1.5px solid #B2C2DF; border-radius:10px; max-width:430px;">
+        <form id="addForm">
+          <div class="form-row"><label>Année</label><input class="input-md" type="text" name="Année" required></div>
+          <div class="form-row"><label>Numéro</label><input class="input-md" type="text" name="Numéro" required></div>
+          <div class="form-row"><label>Titre</label><input class="input-lg" type="text" name="Titre" required></div>
+          <div class="form-row"><label>Page(s)</label><input class="input-md" type="text" name="Page(s)"></div>
+          <div class="form-row"><label>Auteur(s)</label>
+            <select class="select-lg" name="Auteur(s)" id="addAuteur" required></select>
+          </div>
+          <div class="form-row"><label>Ville(s)</label>
+            <select class="select-lg" name="Ville(s)" id="addVille" required></select>
+          </div>
+          <div class="form-row"><label>Theme(s)</label>
+            <select class="select-lg" name="Theme(s)" id="addTheme" required></select>
+          </div>
+          <div class="form-row"><label>Époque </label><input class="input-md" type="text" name="Epoque"></div>
+          <div class="form-row">
+            <button type="submit" class="btn-primary">Valider</button>
+            <button type="button" id="cancelAdd" class="btn-light">Annuler</button>
+          </div>
+        </form>
+      </div>
+      <div class="table-card">
+        <table id="articlesTable" class="display">
+          <thead>
+            <tr>
+              <th>Année</th>
+              <th>Numéro</th>
+              <th>Titre</th>
+              <th>Page(s)</th>
+              <th>Auteur(s)</th>
+              <th>Ville(s)</th>
+              <th>Theme(s)</th>
+              <th>Epoque</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </main>
   <script src="app.js"></script>
